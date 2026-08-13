@@ -1,5 +1,8 @@
+import 'dotenv/config'
 import { web } from './application/web.js'
 
-web.listen(3000, '0.0.0.0', () => {
-    console.log(`Server is running on port ${3000}`)
+const PORT = process.env.PORT || 3000
+
+web.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is running on port ${PORT}`)
 })
