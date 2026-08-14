@@ -6,7 +6,6 @@ export const proxyStream = async (req, res, next) => {
             return res.status(400).send("Parameter url wajib disertakan.");
         }
 
-        // Ambil manifest / chunk dari Amazon IVS dengan header resmi IDN
         const response = await fetch(targetUrl, {
             headers: {
                 "User-Agent":
@@ -22,7 +21,6 @@ export const proxyStream = async (req, res, next) => {
 
         const contentType = response.headers.get("content-type") || "";
 
-        // 1. Jika file yang di-request adalah manifest playlist (.m3u8)
         if (
             targetUrl.includes(".m3u8") ||
             contentType.includes("mpegurl") ||
@@ -31,22 +29,18 @@ export const proxyStream = async (req, res, next) => {
             const text = await response.text();
             const baseUrl = targetUrl.substring(0, targetUrl.lastIndexOf("/") + 1);
 
-            // Ubah semua baris URL di dalam m3u8 agar request segmen (.ts) juga melewati proxy backend
             const modifiedManifest = text
                 .split("\n")
                 .map((line) => {
                     const trimmed = line.trim();
                     if (!trimmed || trimmed.startsWith("#")) {
-                        return line; // Lewati komentar dan tag format m3u8
+                        return line;
                     }
 
-                    // Ubah URL relatif menjadi URL absolut
                     let fullUrl = trimmed;
                     if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
                         fullUrl = new URL(trimmed, baseUrl).toString();
                     }
-
-                    // Arahkan ke endpoint proxy backend kita
                     const backendBaseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
                     return `${backendBaseUrl}/idn/proxy?url=${encodeURIComponent(fullUrl)}`;
                 })
@@ -56,7 +50,6 @@ export const proxyStream = async (req, res, next) => {
             return res.send(modifiedManifest);
         }
 
-        // 2. Jika file yang di-request adalah potongan video biner (.ts chunk)
         const arrayBuffer = await response.arrayBuffer();
         res.setHeader("Content-Type", contentType || "video/mp2t");
         return res.send(Buffer.from(arrayBuffer));
