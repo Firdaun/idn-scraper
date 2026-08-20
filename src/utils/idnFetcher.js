@@ -2,11 +2,34 @@ import { ResponseError } from "../error/responseError.js";
 
 const IDN_GRAPHQL_URL = "https://api.idn.app/graphql";
 
-export const fetchIdnGraphql = async (query) => {
+export const fetchIdnGraphql = async () => {
     const response = await fetch(IDN_GRAPHQL_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query })
+        body: JSON.stringify({
+            query:`
+                query GetActiveLivestreams {
+                    getLivestreams {
+                        slug
+                        title
+                        status
+                        view_count
+                        live_at
+                        end_at
+                        room_identifier
+                        playback_url
+                        category {
+                            name
+                            slug
+                        }
+                        creator {
+                            name
+                            username
+                            uuid
+                        }
+                    }
+                }
+        `})
     });
 
     const responseBody = await response.json()

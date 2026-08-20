@@ -1,33 +1,9 @@
 import { fetchIdnGraphql } from "../utils/idnFetcher.js"
 import { ResponseError } from "../error/responseError.js"
 
-const LIVESTREAMS_QUERY = `
-    query GetActiveLivestreams {
-        getLivestreams {
-            slug
-            title
-            status
-            view_count
-            live_at
-            end_at
-            room_identifier
-            playback_url
-            category {
-                name
-                slug
-            }
-            creator {
-                name
-                username
-                uuid
-            }
-        }
-    }
-`;
-
 // Mengambil seluruh daftar live yang sedang aktif
 export const getAllLivestreams = async () => {
-    const result = await fetchIdnGraphql(LIVESTREAMS_QUERY)
+    const result = await fetchIdnGraphql()
     return result?.data?.getLivestreams || []
 }
 
