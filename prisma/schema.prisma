@@ -28,7 +28,6 @@ model Livestream {
 model LivestreamViewerStat {
   id              Int        @id @default(autoincrement())
   viewCount       Int        // Penonton bersamaan (CCU)
-  uniqueViewCount Int?       // Total akumulasi penonton unik (jika tersedia dari API)
   recordedAt      DateTime   @default(now())
 
   // Relationship
