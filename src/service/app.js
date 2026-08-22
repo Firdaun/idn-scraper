@@ -1,25 +1,29 @@
-import { poller } from "./poller.js";
-import { analytics } from "./analytics.js";
+import { poller } from "./poller.js"
+import { analytics } from "./analytics.js"
 
-const TARGET_SLUG = "lomba-260823184639";
-const POLLING_INTERVAL_MS = 2 * 60 * 1000; // 2 Menit
+const POLLING_INTERVAL_MS = 2 * 60 * 1000
 
-console.log(`[Worker Dimulai] Memantau live: ${TARGET_SLUG}`);
+console.log(`[Worker Dimulai] Memantau semua live member JKT48...`)
 
-async function displayMetrics() {
-    const result = await analytics.getLiveAnalytics(TARGET_SLUG);
-    console.log("\n--- HASIL ANALISIS ---");
-    console.log(JSON.stringify(result, null, 2));
+async function runWorker() {
+    try {
+        const activeLives = await poller.saveSnapshot()
+        for (const live of activeLives) {
+            try {
+                const result = await analytics.getLiveAnalytics(live.slug)
+                console.log(`\n--- HASIL ANALISIS (${result.streamer}) ---`)
+                console.log(JSON.stringify(result, null, 2))
+            } catch (e) {
+                console.log(`[Info] ${live.creator?.name}: ${e.message}`)
+            }
+        }
+    } catch (e) {
+        console.error(`[Worker Error]`, e.message)
+    }
 }
 
-// Eksekusi pertama kali saat script jalan
-await poller.recordViewerSnapshot(TARGET_SLUG);
-await displayMetrics()
+await runWorker()
 
-// Eksekusi periodik
 setInterval(async () => {
-    await poller.recordViewerSnapshot(TARGET_SLUG);
-    await displayMetrics()
-}, POLLING_INTERVAL_MS);
-
-// Contoh pemanggilan metrik analitik
+    await runWorker()
+}, POLLING_INTERVAL_MS)

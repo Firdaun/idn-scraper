@@ -6,7 +6,8 @@ const getLiveAnalytics = async (slug) => {
         where: { slug },
         include: {
             viewerSnapshots: {
-                orderBy: { recordedAt: "asc" }
+                orderBy: { recordedAt: "desc" },
+                take: 10
             }
         }
     })
@@ -15,7 +16,7 @@ const getLiveAnalytics = async (slug) => {
         throw new ResponseError(404, "Data snapshot penonton belum tersedia.")
     }
 
-    const snapshots = stream.viewerSnapshots
+    const snapshots = stream.viewerSnapshots.reverse()
     const viewerCounts = snapshots.map(s => s.viewCount)
 
     const peakViewers = Math.max(...viewerCounts)
