@@ -55,21 +55,29 @@ const getMultiLiveAnalytics = async () => {
 
     if (activeStreams.length === 0) return { chartData: [], streamers: [] };
 
-    const formatDuration = (liveAt) => {
-        const totalMinutes = Math.floor((new Date() - new Date(liveAt)) / (1000 * 60))
+    const formatDuration = (liveAt, lastRecordedAt) => {
+        if (!liveAt || !lastRecordedAt) return "0 Seconds";
+        const totalSeconds = Math.max(0, Math.floor((new Date(lastRecordedAt) - new Date(liveAt)) / 1000));
 
-        if (totalMinutes < 60) {
-            return `${totalMinutes} Menit`
+        if (totalSeconds < 60) {
+            return `${totalSeconds} ${totalSeconds === 1 ? "Second" : "Seconds"}`;
         }
 
-        const hours = Math.floor(totalMinutes / 60)
-        const minutes = totalMinutes % 60
+        const totalMinutes = Math.floor(totalSeconds / 60);
 
-        const formattedHours = String(hours).padStart(2, '0')
-        const formattedMinutes = String(minutes).padStart(2, '0')
+        if (totalMinutes < 60) {
+            return `${totalMinutes} ${totalMinutes === 1 ? "Minute" : "Minutes"}`;
+        }
 
-        return `${formattedHours}:${formattedMinutes}`;
-    }
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+
+        const hourText = `${hours} ${hours === 1 ? "Hour" : "Hours"}`;
+        if (minutes === 0) return hourText;
+
+        const minuteText = `${minutes} ${minutes === 1 ? "Minute" : "Minutes"}`;
+        return `${hourText} ${minuteText}`;
+    };
 
     const timeMap = new Map();
     const streamersMap = new Map();
@@ -77,11 +85,15 @@ const getMultiLiveAnalytics = async () => {
     for (const stream of activeStreams) {
         const name = stream.streamerName.replace(" JKT48", "");
         const counts = stream.viewerSnapshots.map(s => s.viewCount);
+
+        const lastSnapshot = stream.viewerSnapshots[stream.viewerSnapshots.length - 1];
+        const lastRecordedAt = lastSnapshot ? lastSnapshot.recordedAt : stream.liveAt;
+
         streamersMap.set(name, {
             slug: stream.slug,
             fullName: stream.streamerName,
             peakViewers: Math.max(...counts, 0),
-            duration: formatDuration(stream.liveAt)
+            duration: formatDuration(stream.liveAt, lastRecordedAt)
         });
 
         for (const snap of stream.viewerSnapshots) {
