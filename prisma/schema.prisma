@@ -1,0 +1,39 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Livestream {
+  id               String                 @id @default(uuid())
+  slug             String                 @unique
+  streamerName     String
+  title            String
+  liveAt           DateTime
+  endAt            DateTime?
+  peakViewers      Int                    @default(0)
+  avgViewers       Float                  @default(0)
+  viewerSnapshots  LivestreamViewerStat[]
+  createdAt        DateTime               @default(now())
+}
+
+model LivestreamViewerStat {
+  id              Int        @id @default(autoincrement())
+  viewCount       Int        // Penonton bersamaan (CCU)
+  uniqueViewCount Int?       // Total akumulasi penonton unik (jika tersedia dari API)
+  recordedAt      DateTime   @default(now())
+
+  // Relationship
+  livestreamId    String
+  livestream      Livestream @relation(fields: [livestreamId], references: [id], onDelete: Cascade)
+
+  @@index([livestreamId, recordedAt])
+}

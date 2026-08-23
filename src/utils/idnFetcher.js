@@ -1,23 +1,19 @@
+import { ResponseError } from "../error/responseError.js";
+
 const IDN_GRAPHQL_URL = "https://api.idn.app/graphql";
 
-const HEADERS = {
-    "Content-Type": "application/json",
-    "User-Agent":
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-};
-
-export const fetchIdnGraphql = async (query, variables = {}) => {
+export const fetchIdnGraphql = async (query) => {
     const response = await fetch(IDN_GRAPHQL_URL, {
         method: "POST",
-        headers: HEADERS,
-        body: JSON.stringify({ query, variables }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query })
     });
 
-    const responseBody = await response.json().catch(() => null);
+    const responseBody = await response.json()
 
     if (!response.ok) {
         console.error("Detail Error IDN:", JSON.stringify(responseBody, null, 2));
-        throw new Error(
+        throw new ResponseError(404,
             responseBody?.errors?.[0]?.message || `IDN API Error: ${response.statusText}`
         );
     }

@@ -2,19 +2,24 @@ import { fetchIdnGraphql } from "../utils/idnFetcher.js"
 import { ResponseError } from "../error/responseError.js"
 
 const LIVESTREAMS_QUERY = `
-    query GetLivestreams {
+    query GetActiveLivestreams {
         getLivestreams {
-            title
             slug
-            playback_url
-            room_identifier
-            live_at
+            title
+            status
             view_count
-            image_url
+            live_at
+            end_at
+            room_identifier
+            playback_url
+            category {
+                name
+                slug
+            }
             creator {
                 name
                 username
-                avatar
+                uuid
             }
         }
     }
@@ -36,21 +41,28 @@ const fetchChatRoomId = async (username, slug) => {
             },
         })
 
-        if (!res.ok) return null
+        if (!res.ok) {
+            throw new Error(`Gagal memuat web IDN (HTTP status: ${res.status})`)
+        }
 
         const html = await res.text()
         const match = html.match(/"chat_room_id":"(arn:aws:ivschat:[^"]+)"/)
-        return match ? match[1] : null
+
+        if (!match) {
+            throw new Error("Chat room ID tidak ditemukan pada halaman live.")
+        }
+
+        return match[1]
     } catch (err) {
         console.error("Gagal mengambil chat_room_id:", err)
-        return null
+        throw new ResponseError(404, `Gagal mengambil chat_room_id: ${err.message}`)
     }
 }
 
 export const getLivestreamBySlug = async (slug) => {
     const streams = await getAllLivestreams()
     const stream = streams.find((item) => item.slug === slug)
-
+    
     if (!stream || !stream.playback_url) {
         throw new ResponseError(404, "Live stream tidak ditemukan atau sudah berakhir.")
     }
