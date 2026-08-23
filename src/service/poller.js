@@ -59,9 +59,9 @@ const saveSnapshot = async () => {
 
     results.forEach((res) => {
         if (res.status === "fulfilled") {
-            console.log(`  -> ${res.value.streamer} (${res.value.slug}): ${res.value.viewers.toLocaleString()} CCU`);
+            console.log(`---> ${res.value.streamer} (${res.value.slug}): ${res.value.viewers.toLocaleString()} CCU`);
         } else {
-            console.error(`  -> Gagal menyimpan snapshot:`, res.reason);
+            console.error(`---> Gagal menyimpan snapshot:`, res.reason);
         }
     });
 

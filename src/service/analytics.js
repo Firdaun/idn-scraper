@@ -33,7 +33,10 @@ const getLiveAnalytics = async (slug) => {
     })
 
     const chartData = snapshots.map((s) => ({
-        timestamp: s.recordedAt.toISOString(),
+        liveAt: stream.liveAt.toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit'
+        }),
         timeLabel: new Date(s.recordedAt).toLocaleTimeString('id-ID', {
             hour: '2-digit',
             minute: '2-digit'
