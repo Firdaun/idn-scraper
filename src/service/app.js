@@ -1,7 +1,7 @@
 import { poller } from "./poller.js"
 import { analytics } from "./analytics.js"
 
-const POLLING_INTERVAL_MS = 2 * 60 * 1000
+const POLLING_INTERVAL_MS = 30 * 1000
 
 console.log(`[Worker Dimulai] Memantau semua live member JKT48...`)
 
