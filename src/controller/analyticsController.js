@@ -12,3 +12,15 @@ export const getAnalytics = async (req, res, next) => {
         next(e)
     }
 }
+
+export const getAllMultiLive = async (req, res, next) => {
+    try {
+        const result = await analytics.getMultiLiveAnalytics();
+        res.status(200).json({
+            success: true,
+            data: result
+        });
+    } catch (e) {
+        next(e);
+    }
+};
