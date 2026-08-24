@@ -5,17 +5,17 @@ const getLiveAnalytics = async (slug) => {
     const stream = await prismaClient.livestream.findUnique({
         where: { slug },
         include: {
-            viewerSnapshots: {
+            snapshots: {
                 orderBy: { recordedAt: "asc" },
             }
         }
     })
 
-    if (!stream || stream.viewerSnapshots.length === 0) {
+    if (!stream || stream.snapshots.length === 0) {
         throw new ResponseError(404, "Data snapshot penonton belum tersedia.")
     }
 
-    const snapshots = stream.viewerSnapshots
+    const snapshots = stream.snapshots
     const viewerCounts = snapshots.map(s => s.viewCount)
 
     const peakViewers = Math.max(...viewerCounts)
@@ -47,7 +47,7 @@ const getLiveAnalytics = async (slug) => {
 const getMultiLiveAnalytics = async () => {
     const activeStreams = await prismaClient.livestream.findMany({
         include: {
-            viewerSnapshots: {
+            snapshots: {
                 orderBy: { recordedAt: "asc" },
             },
         },
@@ -84,9 +84,9 @@ const getMultiLiveAnalytics = async () => {
 
     for (const stream of activeStreams) {
         const name = stream.streamerName.replace(" JKT48", "");
-        const counts = stream.viewerSnapshots.map(s => s.viewCount);
+        const counts = stream.snapshots.map(s => s.viewCount);
 
-        const lastSnapshot = stream.viewerSnapshots[stream.viewerSnapshots.length - 1];
+        const lastSnapshot = stream.snapshots[stream.snapshots.length - 1];
         const lastRecordedAt = lastSnapshot ? lastSnapshot.recordedAt : stream.liveAt;
 
         streamersMap.set(name, {
@@ -96,7 +96,7 @@ const getMultiLiveAnalytics = async () => {
             duration: formatDuration(stream.liveAt, lastRecordedAt)
         });
 
-        for (const snap of stream.viewerSnapshots) {
+        for (const snap of stream.snapshots) {
             const timeStr = new Date(snap.recordedAt).toLocaleTimeString("id-ID", {
                 hour: "2-digit",
                 minute: "2-digit",

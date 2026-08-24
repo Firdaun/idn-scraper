@@ -16,7 +16,7 @@ const recordViewerSnapshot = async (live) => {
     })
 
 
-    const snapshot = await prismaClient.livestreamViewerStat.create({
+    const snapshot = await prismaClient.snapshot.create({
         data: {
             livestreamId: streamRecord.id,
             viewCount: live.view_count,

@@ -21,11 +21,11 @@ model Livestream {
   endAt            DateTime?
   peakViewers      Int                    @default(0)
   avgViewers       Float                  @default(0)
-  viewerSnapshots  LivestreamViewerStat[]
-  createdAt        DateTime               @default(now())
+  snapshots        Snapshot[]
+  createdAt        DateTime   @default(now())
 }
 
-model LivestreamViewerStat {
+model Snapshot {
   id              Int        @id @default(autoincrement())
   viewCount       Int        // Penonton bersamaan (CCU)
   recordedAt      DateTime   @default(now())
