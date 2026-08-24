@@ -1,6 +1,6 @@
-import { ResponseError } from "../error/responseError.js";
+import { ResponseError } from "../error/responseError.js"
 
-const IDN_GRAPHQL_URL = "https://api.idn.app/graphql";
+const IDN_GRAPHQL_URL = "https://api.idn.app/graphql"
 
 export const fetchIdnGraphql = async () => {
     const response = await fetch(IDN_GRAPHQL_URL, {
@@ -32,16 +32,16 @@ export const fetchIdnGraphql = async () => {
                     }
                 }
         `})
-    });
+    })
 
     const responseBody = await response.json()
 
     if (!response.ok) {
-        console.error("Detail Error IDN:", JSON.stringify(responseBody, null, 2));
+        console.error("Detail Error IDN:", JSON.stringify(responseBody, null, 2))
         throw new ResponseError(404,
             responseBody?.errors?.[0]?.message || `IDN API Error: ${response.statusText}`
-        );
+        )
     }
 
-    return responseBody;
+    return responseBody
 };

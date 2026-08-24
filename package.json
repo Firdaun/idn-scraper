@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "postinstall": "prisma generate",
-    "start": "node --watch-path=src src/main.js",
+    "start": "node src/main.js",
     "analytics": "node src/service/app.js"
   },
   "keywords": [],

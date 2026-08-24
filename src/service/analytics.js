@@ -1,5 +1,5 @@
-import { prismaClient } from "../application/database.js";
-import { ResponseError } from "../error/responseError.js";
+import { prismaClient } from "../application/database.js"
+import { ResponseError } from "../error/responseError.js"
 
 const getLiveAnalytics = async (slug) => {
     const stream = await prismaClient.livestream.findUnique({
@@ -51,79 +51,81 @@ const getMultiLiveAnalytics = async () => {
                 orderBy: { recordedAt: "asc" },
             },
         },
-    });
+    })
 
-    if (activeStreams.length === 0) return { chartData: [], streamers: [] };
+    if (activeStreams.length === 0) return { chartData: [], streamers: [] }
 
     const formatDuration = (liveAt, lastRecordedAt) => {
-        if (!liveAt || !lastRecordedAt) return "0 Seconds";
-        const totalSeconds = Math.max(0, Math.floor((new Date(lastRecordedAt) - new Date(liveAt)) / 1000));
+        if (!liveAt || !lastRecordedAt) return "0 Seconds"
+        const totalSeconds = Math.max(0, Math.floor((new Date(lastRecordedAt) - new Date(liveAt)) / 1000))
 
         if (totalSeconds < 60) {
-            return `${totalSeconds} ${totalSeconds === 1 ? "Second" : "Seconds"}`;
+            return `${totalSeconds} ${totalSeconds === 1 ? "Second" : "Seconds"}`
         }
 
-        const totalMinutes = Math.floor(totalSeconds / 60);
+        const totalMinutes = Math.floor(totalSeconds / 60)
 
         if (totalMinutes < 60) {
-            return `${totalMinutes} ${totalMinutes === 1 ? "Minute" : "Minutes"}`;
+            return `${totalMinutes} ${totalMinutes === 1 ? "Minute" : "Minutes"}`
         }
 
-        const hours = Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes % 60;
+        const hours = Math.floor(totalMinutes / 60)
+        const minutes = totalMinutes % 60
 
-        const hourText = `${hours} ${hours === 1 ? "Hour" : "Hours"}`;
-        if (minutes === 0) return hourText;
+        const hourText = `${hours} ${hours === 1 ? "Hour" : "Hours"}`
+        if (minutes === 0) return hourText
 
-        const minuteText = `${minutes} ${minutes === 1 ? "Minute" : "Minutes"}`;
-        return `${hourText} ${minuteText}`;
-    };
+        const minuteText = `${minutes} ${minutes === 1 ? "Minute" : "Minutes"}`
+        return `${hourText} ${minuteText}`
+    }
 
-    const timeMap = new Map();
-    const streamersMap = new Map();
+    const timeMap = new Map()
+    const streamersMap = new Map()
 
     for (const stream of activeStreams) {
-        const name = stream.streamerName.replace(" JKT48", "");
-        const counts = stream.snapshots.map(s => s.viewCount);
+        const name = stream.streamerName.replace(" JKT48", "")
+        const counts = stream.snapshots.map(s => s.viewCount)
 
-        const lastSnapshot = stream.snapshots[stream.snapshots.length - 1];
-        const lastRecordedAt = lastSnapshot ? lastSnapshot.recordedAt : stream.liveAt;
+        const lastSnapshot = stream.snapshots[stream.snapshots.length - 1]
+        const lastRecordedAt = lastSnapshot ? lastSnapshot.recordedAt : stream.liveAt
 
         streamersMap.set(name, {
             slug: stream.slug,
             fullName: stream.streamerName,
             peakViewers: Math.max(...counts, 0),
             duration: formatDuration(stream.liveAt, lastRecordedAt)
-        });
+        })
 
         for (const snap of stream.snapshots) {
-            const timeStr = new Date(snap.recordedAt).toLocaleTimeString("id-ID", {
+            const roundedTime = Math.round(new Date(snap.recordedAt).getTime() / 30000) * 30000
+            const timeStr = new Date(roundedTime).toLocaleTimeString("id-ID", {
                 hour: "2-digit",
                 minute: "2-digit",
-            });
+                second: "2-digit",
+            })
 
             if (!timeMap.has(timeStr)) {
                 timeMap.set(timeStr, {
                     timeLabel: timeStr,
-                    _rawTime: new Date(snap.recordedAt).getTime()
+                    _rawTime: roundedTime
                 })
             }
 
-            const timeEntry = timeMap.get(timeStr);
-            timeEntry[name] = snap.viewCount;
+            const timeEntry = timeMap.get(timeStr)
+            timeEntry[name] = snap.viewCount
         }
     }
 
     const chartData = Array.from(timeMap.values()).sort((a, b) =>
         a._rawTime - b._rawTime
-    );
+    )
 
     chartData.forEach(item => delete item._rawTime)
 
     return {
         chartData,
         streamers: Array.from(streamersMap.entries()).map(([name, data]) => ({ name, ...data }))
-    };
+    }
 };
 
 export const analytics = {

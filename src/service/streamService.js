@@ -1,7 +1,6 @@
 import { fetchIdnGraphql } from "../utils/idnFetcher.js"
 import { ResponseError } from "../error/responseError.js"
 
-// Mengambil seluruh daftar live yang sedang aktif
 export const getAllLivestreams = async () => {
     const result = await fetchIdnGraphql()
     return result?.data?.getLivestreams || []
