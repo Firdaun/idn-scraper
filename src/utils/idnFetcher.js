@@ -18,6 +18,7 @@ export const fetchIdnGraphql = async () => {
                         end_at
                         room_identifier
                         playback_url
+                        image_url
                         category {
                             name
                             slug
@@ -25,6 +26,7 @@ export const fetchIdnGraphql = async () => {
                         creator {
                             name
                             username
+                            avatar
                             uuid
                         }
                     }
