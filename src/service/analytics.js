@@ -91,8 +91,10 @@ const getMultiLiveAnalytics = async () => {
         const lastRecordedAt = stream.endAt || (lastSnapshot ? lastSnapshot.recordedAt : stream.liveAt)
 
         streamersMap.set(name, {
-            liveAt: stream.liveAt,
             slug: stream.slug,
+            liveAt: stream.liveAt,
+            avgViewers: stream.avgViewers,
+            totalSnapshots: stream.snapshots.length,
             fullName: stream.streamerName,
             peakViewers: Math.max(...counts, 0),
             duration: formatDuration(stream.liveAt, lastRecordedAt),
@@ -122,8 +124,6 @@ const getMultiLiveAnalytics = async () => {
     const chartData = Array.from(timeMap.values()).sort((a, b) =>
         a._rawTime - b._rawTime
     )
-
-    chartData.forEach(item => delete item._rawTime)
 
     return {
         chartData,
