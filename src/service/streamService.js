@@ -3,7 +3,16 @@ import { ResponseError } from "../error/responseError.js"
 
 export const getAllLivestreams = async () => {
     const result = await fetchIdnGraphql()
-    return result?.data?.getLivestreams || []
+    const allStreams = result?.data?.getLivestreams || []
+
+    return allStreams.filter((stream) => {
+        if (!stream.creator) return false
+
+        const name = (stream.creator.name || "").toLowerCase()
+        const username = (stream.creator.username || "").toLowerCase()
+
+        return name.includes("jkt48") || username.startsWith("jkt48_")
+    })
 }
 
 const fetchChatRoomId = async (username, slug) => {
