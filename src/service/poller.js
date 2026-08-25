@@ -32,6 +32,44 @@ const recordViewerSnapshot = async (live, recordedAt) => {
     }
 }
 
+const handleEndedStreams = async (activeSlugs) => {
+    const endedStreams = await prismaClient.livestream.findMany({
+        where: {
+            endAt: null,
+            ...(activeSlugs.length > 0 ? { slug: { notIn: activeSlugs } } : {})
+        },
+        include: {
+            snapshots: {
+                orderBy: { recordedAt: "asc" }
+            }
+        }
+    })
+
+    for (const stream of endedStreams) {
+        const snapshots = stream.snapshots
+        if (snapshots.length === 0) continue
+
+        const lastSnapshot = snapshots[snapshots.length - 1]
+        const finalEndAt = lastSnapshot.recordedAt
+
+        const viewerCounts = snapshots.map((s) => s.viewCount)
+        const peakViewers = Math.max(...viewerCounts, 0)
+        const totalSum = viewerCounts.reduce((acc, curr) => acc + curr, 0)
+        const avgViewers = parseFloat((totalSum / viewerCounts.length).toFixed(2))
+
+        await prismaClient.livestream.update({
+            where: { id: stream.id },
+            data: {
+                endAt: finalEndAt,
+                peakViewers,
+                avgViewers
+            }
+        })
+
+        console.log(`[Live Berakhir] ${stream.streamerName} telah selesai live. endAt di-set ke: ${new Date(finalEndAt).toLocaleTimeString("id-ID")}`)
+    }
+}
+
 const saveSnapshot = async () => {
     const batchTime = new Date()
     const livestreams = await getAllLivestreams()
@@ -44,6 +82,11 @@ const saveSnapshot = async () => {
 
         return name.includes("jkt48") || username.startsWith("jkt48_")
     })
+
+    const activeSlugs = jkt48Lives.map((s) => s.slug)
+
+    // Periksa dan update stream yang sudah selesai live
+    await handleEndedStreams(activeSlugs)
 
     if (jkt48Lives.length === 0) {
         console.log(`[${new Date().toLocaleTimeString("id-ID")}] Tidak ada member JKT48 yang sedang live.`)

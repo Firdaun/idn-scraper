@@ -34,6 +34,7 @@ const getLiveAnalytics = async (slug) => {
 
     return {
         livestreamId: stream.id,
+        liveAt: stream.liveAt,
         slug: stream.slug,
         title: stream.title,
         streamer: stream.streamerName,
@@ -87,13 +88,15 @@ const getMultiLiveAnalytics = async () => {
         const counts = stream.snapshots.map(s => s.viewCount)
 
         const lastSnapshot = stream.snapshots[stream.snapshots.length - 1]
-        const lastRecordedAt = lastSnapshot ? lastSnapshot.recordedAt : stream.liveAt
+        const lastRecordedAt = stream.endAt || (lastSnapshot ? lastSnapshot.recordedAt : stream.liveAt)
 
         streamersMap.set(name, {
+            liveAt: stream.liveAt,
             slug: stream.slug,
             fullName: stream.streamerName,
             peakViewers: Math.max(...counts, 0),
-            duration: formatDuration(stream.liveAt, lastRecordedAt)
+            duration: formatDuration(stream.liveAt, lastRecordedAt),
+            endAt: stream.endAt
         })
 
         for (const snap of stream.snapshots) {
