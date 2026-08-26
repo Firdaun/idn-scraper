@@ -20,7 +20,7 @@ const recordViewerSnapshot = async (live, recordedAt) => {
         data: {
             livestreamId: streamRecord.id,
             viewCount: live.view_count,
-            recordedAt: recordedAt || new Date()
+            recordedAt: recordedAt
         }
     })
 
@@ -85,7 +85,6 @@ const saveSnapshot = async () => {
 
     const activeSlugs = jkt48Lives.map((s) => s.slug)
 
-    // Periksa dan update stream yang sudah selesai live
     await handleEndedStreams(activeSlugs)
 
     if (jkt48Lives.length === 0) {

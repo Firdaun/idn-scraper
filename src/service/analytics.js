@@ -83,12 +83,16 @@ const getMultiLiveAnalytics = async () => {
     const timeMap = new Map()
     const streamersMap = new Map()
 
+    const roundedTime = (time) => {
+        return Math.round(new Date(time).getTime() / 30000) * 30000
+    }
+
     for (const stream of activeStreams) {
         const name = stream.streamerName.replace(" JKT48", "")
         const counts = stream.snapshots.map(s => s.viewCount)
 
         const lastSnapshot = stream.snapshots[stream.snapshots.length - 1]
-        const lastRecordedAt = stream.endAt || (lastSnapshot ? lastSnapshot.recordedAt : stream.liveAt)
+        const lastRecordedAt = roundedTime(lastSnapshot?.recordedAt || stream.liveAt)
 
         streamersMap.set(name, {
             slug: stream.slug,
@@ -102,8 +106,7 @@ const getMultiLiveAnalytics = async () => {
         })
 
         for (const snap of stream.snapshots) {
-            const roundedTime = Math.round(new Date(snap.recordedAt).getTime() / 30000) * 30000
-            const timeStr = new Date(roundedTime).toLocaleTimeString("id-ID", {
+            const timeStr = new Date(roundedTime(snap.recordedAt)).toLocaleTimeString("id-ID", {
                 hour: "2-digit",
                 minute: "2-digit",
                 second: "2-digit",
@@ -112,7 +115,7 @@ const getMultiLiveAnalytics = async () => {
             if (!timeMap.has(timeStr)) {
                 timeMap.set(timeStr, {
                     timeLabel: timeStr,
-                    _rawTime: roundedTime
+                    _rawTime: roundedTime(snap.recordedAt)
                 })
             }
 
