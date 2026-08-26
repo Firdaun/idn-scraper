@@ -47,6 +47,7 @@ const getLiveAnalytics = async (slug) => {
 
 const getMultiLiveAnalytics = async () => {
     const activeStreams = await prismaClient.livestream.findMany({
+        orderBy: { liveAt: "asc" },
         include: {
             snapshots: {
                 orderBy: { recordedAt: "asc" },
@@ -94,7 +95,7 @@ const getMultiLiveAnalytics = async () => {
         const lastSnapshot = stream.snapshots[stream.snapshots.length - 1]
         const lastRecordedAt = roundedTime(lastSnapshot?.recordedAt || stream.liveAt)
 
-        streamersMap.set(name, {
+        const streamInfo = {
             slug: stream.slug,
             liveAt: stream.liveAt,
             avgViewers: stream.avgViewers,
@@ -103,29 +104,35 @@ const getMultiLiveAnalytics = async () => {
             peakViewers: Math.max(...counts, 0),
             duration: formatDuration(stream.liveAt, lastRecordedAt),
             endAt: stream.endAt
-        })
+        }
+
+        if (!streamersMap.has(name)) {
+            streamersMap.set(name, streamInfo)
+        } else {
+            const existing = streamersMap.get(name)
+            const isCurrentlyLive = !stream.endAt && existing.endAt
+            const isNewer = new Date(stream.liveAt) >= new Date(existing.liveAt)
+            if (isCurrentlyLive || isNewer) {
+                streamersMap.set(name, streamInfo)
+            }
+        }
 
         for (const snap of stream.snapshots) {
-            const timeStr = new Date(roundedTime(snap.recordedAt)).toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-            })
+            const rawTime = roundedTime(snap.recordedAt)
 
-            if (!timeMap.has(timeStr)) {
-                timeMap.set(timeStr, {
-                    timeLabel: timeStr,
-                    _rawTime: roundedTime(snap.recordedAt)
+            if (!timeMap.has(rawTime)) {
+                timeMap.set(rawTime, {
+                    timeLabel: rawTime
                 })
             }
 
-            const timeEntry = timeMap.get(timeStr)
+            const timeEntry = timeMap.get(rawTime)
             timeEntry[name] = snap.viewCount
         }
     }
 
     const chartData = Array.from(timeMap.values()).sort((a, b) =>
-        a._rawTime - b._rawTime
+        a.timeLabel - b.timeLabel
     )
 
     return {
