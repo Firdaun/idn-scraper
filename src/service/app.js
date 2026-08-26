@@ -12,7 +12,10 @@ async function runWorker() {
             try {
                 const result = await analytics.getLiveAnalytics(live.slug)
                 console.log(`\n--- HASIL ANALISIS (${result.streamer}) ---`)
-                console.log(JSON.stringify(result, null, 2))
+                console.log(JSON.stringify({
+                    streamer: result.streamer,
+                    peakViewers: `${Number(result.peakViewers || 0).toLocaleString("id-ID")} Penonton`
+                }, null, 2))
             } catch (e) {
                 console.log(`[Info] ${live.creator?.name}: ${e.message}`)
             }
