@@ -11,7 +11,8 @@ const recordViewerSnapshot = async (live, recordedAt) => {
             liveAt: live.live_at
         },
         update: {
-            title: live.title
+            title: live.title,
+            endAt: null
         }
     })
 
