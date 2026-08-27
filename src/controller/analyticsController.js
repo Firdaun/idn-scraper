@@ -15,7 +15,8 @@ export const getAnalytics = async (req, res, next) => {
 
 export const getAllMultiLive = async (req, res, next) => {
     try {
-        const result = await analytics.getMultiLiveAnalytics()
+        const { startDate, endDate } = req.query
+        const result = await analytics.getMultiLiveAnalytics(startDate, endDate)
         res.status(200).json({
             success: true,
             data: result

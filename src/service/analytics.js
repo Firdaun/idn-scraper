@@ -45,11 +45,31 @@ const getLiveAnalytics = async (slug) => {
     }
 }
 
-const getMultiLiveAnalytics = async () => {
+const getMultiLiveAnalytics = async (startDate, endDate) => {
+    const snapshotWhere = {}
+
+    if (startDate) {
+        const start = new Date(startDate)
+        if (!isNaN(start.getTime())) snapshotWhere.gte = start
+    }
+
+    if (endDate) {
+        const end = new Date(endDate)
+        if (!isNaN(end.getTime())) snapshotWhere.lte = end
+    }
+
+    const hasFilter = Object.keys(snapshotWhere).length > 0
+
     const activeStreams = await prismaClient.livestream.findMany({
+        where: hasFilter ? {
+            snapshots: {
+                some: { recordedAt: snapshotWhere }
+            }
+        } : undefined,
         orderBy: { liveAt: "asc" },
         include: {
             snapshots: {
+                where: hasFilter ? { recordedAt: snapshotWhere } : undefined,
                 orderBy: { recordedAt: "asc" },
             },
         },
@@ -89,6 +109,8 @@ const getMultiLiveAnalytics = async () => {
     }
 
     for (const stream of activeStreams) {
+        if (!stream.snapshots || stream.snapshots.length === 0) continue
+
         const name = stream.streamerName.replace(" JKT48", "")
         const counts = stream.snapshots.map(s => s.viewCount)
 
