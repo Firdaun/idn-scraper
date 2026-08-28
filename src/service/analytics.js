@@ -117,7 +117,7 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
         const lastSnapshot = stream.snapshots[stream.snapshots.length - 1]
         const lastRecordedAt = roundedTime(lastSnapshot?.recordedAt || stream.liveAt)
 
-        const streamInfo = {
+        const sessionInfo = {
             slug: stream.slug,
             liveAt: stream.liveAt,
             avgViewers: stream.avgViewers,
@@ -129,13 +129,18 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
         }
 
         if (!streamersMap.has(name)) {
-            streamersMap.set(name, streamInfo)
+            streamersMap.set(name, {
+                ...sessionInfo,
+                sessions: [sessionInfo]
+            })
         } else {
             const existing = streamersMap.get(name)
+            existing.sessions.push(sessionInfo)
+
             const isCurrentlyLive = !stream.endAt && existing.endAt
             const isNewer = new Date(stream.liveAt) >= new Date(existing.liveAt)
             if (isCurrentlyLive || isNewer) {
-                streamersMap.set(name, streamInfo)
+                Object.assign(existing, sessionInfo)
             }
         }
 
@@ -150,6 +155,7 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
 
             const timeEntry = timeMap.get(rawTime)
             timeEntry[name] = snap.viewCount
+            timeEntry[`_${name}_slug`] = stream.slug
         }
     }
 
