@@ -21,8 +21,10 @@ model Livestream {
   endAt            DateTime?
   peakViewers      Int                    @default(0)
   avgViewers       Float                  @default(0)
+  createdAt        DateTime               @default(now())
+
   snapshots        Snapshot[]
-  createdAt        DateTime   @default(now())
+  chatSnapshots    ChatSnapshot[]
 }
 
 model Snapshot {
@@ -33,6 +35,17 @@ model Snapshot {
   // Relationship
   livestreamId    String
   livestream      Livestream @relation(fields: [livestreamId], references: [id], onDelete: Cascade)
+
+  @@index([livestreamId, recordedAt])
+}
+
+model ChatSnapshot {
+  id           Int        @id @default(autoincrement())
+  messageCount Int        @default(0)
+  recordedAt   DateTime   @default(now())
+
+  livestreamId String
+  livestream   Livestream @relation(fields: [livestreamId], references: [id], onDelete: Cascade)
 
   @@index([livestreamId, recordedAt])
 }

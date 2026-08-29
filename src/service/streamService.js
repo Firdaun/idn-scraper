@@ -15,7 +15,7 @@ export const getAllLivestreams = async () => {
     })
 }
 
-const fetchChatRoomId = async (username, slug) => {
+export const fetchChatRoomId = async (username, slug) => {
     try {
         const url = `https://www.idn.app/${username}/live/${slug}`
         const res = await fetch(url, {
@@ -26,20 +26,19 @@ const fetchChatRoomId = async (username, slug) => {
         })
 
         if (!res.ok) {
-            throw new Error(`Gagal memuat web IDN (HTTP status: ${res.status})`)
+            return null
         }
 
         const html = await res.text()
         const match = html.match(/"chat_room_id":"(arn:aws:ivschat:[^"]+)"/)
 
         if (!match) {
-            throw new Error("Chat room ID tidak ditemukan pada halaman live.")
+            return null
         }
 
         return match[1]
     } catch (err) {
-        console.error("Gagal mengambil chat_room_id:", err)
-        throw new ResponseError(404, `Gagal mengambil chat_room_id: ${err.message}`)
+        return null
     }
 }
 

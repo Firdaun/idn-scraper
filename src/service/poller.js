@@ -1,5 +1,8 @@
 import { prismaClient } from "../application/database.js"
-import { getAllLivestreams } from "./streamService.js"
+import { getAllLivestreams, fetchChatRoomId } from "./streamService.js"
+import { chatPoller } from "./chatPoller.js"
+
+const chatRoomCache = new Map()
 
 const recordViewerSnapshot = async (live, recordedAt) => {
     const streamRecord = await prismaClient.livestream.upsert({
@@ -16,6 +19,13 @@ const recordViewerSnapshot = async (live, recordedAt) => {
         }
     })
 
+    let chatRoomId = chatRoomCache.get(live.slug)
+    if (!chatRoomId && live.creator?.username) {
+        chatRoomId = await fetchChatRoomId(live.creator.username, live.slug)
+        if (chatRoomId) {
+            chatRoomCache.set(live.slug, chatRoomId)
+        }
+    }
 
     const snapshot = await prismaClient.snapshot.create({
         data: {
@@ -27,9 +37,11 @@ const recordViewerSnapshot = async (live, recordedAt) => {
 
     console.log(`[Snapshot Disimpan] ${live.creator?.name} -> ${snapshot.viewCount} Penonton (${new Date().toLocaleTimeString()})`)
     return {
+        id: streamRecord.id,
         streamer: live.creator?.name,
         viewers: snapshot.viewCount,
         slug: live.slug,
+        chatRoomId: chatRoomId || null
     }
 }
 
@@ -67,6 +79,9 @@ const handleEndedStreams = async (activeSlugs) => {
             }
         })
 
+        chatRoomCache.delete(stream.slug)
+        chatPoller.disconnectChat(stream.id)
+
         console.log(`[Live Berakhir] ${stream.streamerName} telah selesai live. endAt di-set ke: ${new Date(finalEndAt).toLocaleTimeString("id-ID")}`)
     }
 }
@@ -89,6 +104,7 @@ const saveSnapshot = async () => {
     await handleEndedStreams(activeSlugs)
 
     if (jkt48Lives.length === 0) {
+        chatPoller.syncActiveStreams([])
         console.log(`[${new Date().toLocaleTimeString("id-ID")}] Tidak ada member JKT48 yang sedang live.`)
         return []
     }
@@ -101,13 +117,23 @@ const saveSnapshot = async () => {
         jkt48Lives.map((live) => recordViewerSnapshot(live, batchTime))
     )
 
+    const activeStreamsForChat = []
     results.forEach((res) => {
-        if (res.status === "fulfilled") {
+        if (res.status === "fulfilled" && res.value) {
+            activeStreamsForChat.push({
+                id: res.value.id,
+                slug: res.value.slug,
+                streamerName: res.value.streamer,
+                chatRoomId: res.value.chatRoomId
+            })
             console.log(`---> ${res.value.streamer} (${res.value.slug}): ${res.value.viewers.toLocaleString()} CCU`)
         } else {
             console.error(`---> Gagal menyimpan snapshot:`, res.reason)
         }
     })
+
+    chatPoller.syncActiveStreams(activeStreamsForChat)
+    await chatPoller.saveChatSnapshots(batchTime)
 
     return jkt48Lives
 }
