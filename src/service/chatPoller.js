@@ -100,7 +100,8 @@ class ChatPollerService {
 
             socket.on("close", (code, reason) => {
                 if (this.activeConnections.has(livestreamId)) {
-                    console.log(`[Chat Worker] Koneksi chat ${streamerName} terputus (Code: ${code}). Akan otomatis dihubungkan ulang.`);
+                    const reasonMsg = reason && reason.length > 0 ? ` - ${reason.toString()}` : "";
+                    console.log(`[Chat Worker] Koneksi chat ${streamerName} terputus (Code: ${code}${reasonMsg}). Akan otomatis dihubungkan ulang.`);
                     this.activeConnections.delete(livestreamId);
                 }
             });
