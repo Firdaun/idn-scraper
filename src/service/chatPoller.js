@@ -98,9 +98,10 @@ class ChatPollerService {
                 console.error(`[Chat Worker Error] (${streamerName}):`, err.message || err);
             });
 
-            socket.on("close", () => {
+            socket.on("close", (code, reason) => {
                 if (this.activeConnections.has(livestreamId)) {
-                    console.log(`[Chat Worker] Koneksi chat ${streamerName} terputus.`);
+                    console.log(`[Chat Worker] Koneksi chat ${streamerName} terputus (Code: ${code}). Akan otomatis dihubungkan ulang.`);
+                    this.activeConnections.delete(livestreamId);
                 }
             });
 
@@ -108,6 +109,7 @@ class ChatPollerService {
 
         } catch (e) {
             console.error(`[Chat Worker] Gagal menghubungkan chat (${streamerName}):`, e.message);
+            this.activeConnections.delete(livestreamId);
         }
     }
 
@@ -135,9 +137,14 @@ class ChatPollerService {
     syncActiveStreams(activeLiveStreams) {
         const activeIds = new Set(activeLiveStreams.map(s => s.id));
 
-        // 1. Hubungkan live baru yang belum terdaftar di ChatPoller
+        // 1. Hubungkan live baru atau hidupkan kembali koneksi yang terputus (Health Check & Reconnect)
         for (const live of activeLiveStreams) {
-            if (!this.activeConnections.has(live.id)) {
+            const existingConn = this.activeConnections.get(live.id);
+            const isSocketDead = !existingConn || !existingConn.socket ||
+                existingConn.socket.readyState === WebSocket.CLOSED ||
+                existingConn.socket.readyState === WebSocket.CLOSING;
+
+            if (isSocketDead) {
                 this.connectToChat(live.id, live.streamerName, live.chatRoomId);
             }
         }
@@ -145,7 +152,7 @@ class ChatPollerService {
         // 2. Putus koneksi untuk stream yang sudah selesai
         for (const id of this.activeConnections.keys()) {
             if (!activeIds.has(id)) {
-                this.disconnectChat(id)
+                this.disconnectChat(id);
             }
         }
     }
