@@ -30,7 +30,7 @@ class ChatPollerService {
     /**
      * Membuka koneksi WebSocket ke ruang chat live stream tertentu
      */
-    connectToChat(livestreamId, slug, streamerName, chatRoomId) {
+    connectToChat(livestreamId, streamerName, chatRoomId) {
         if (this.activeConnections.has(livestreamId)) return;
         if (!chatRoomId) {
             return;
@@ -38,12 +38,11 @@ class ChatPollerService {
 
         const guestUuid = crypto.randomUUID();
         const connectionState = {
-            socket: null,
             messageCount: 0,
-            slug,
+            livestreamId,
             streamerName,
             chatRoomId,
-            livestreamId
+            socket: null,
         };
 
         try {
@@ -139,7 +138,7 @@ class ChatPollerService {
         // 1. Hubungkan live baru yang belum terdaftar di ChatPoller
         for (const live of activeLiveStreams) {
             if (!this.activeConnections.has(live.id)) {
-                this.connectToChat(live.id, live.slug, live.streamerName, live.chatRoomId);
+                this.connectToChat(live.id, live.streamerName, live.chatRoomId);
             }
         }
 

@@ -40,7 +40,6 @@ const recordViewerSnapshot = async (live, recordedAt) => {
         id: streamRecord.id,
         streamer: live.creator?.name,
         viewers: snapshot.viewCount,
-        slug: live.slug,
         chatRoomId: chatRoomId || null
     }
 }
@@ -122,11 +121,10 @@ const saveSnapshot = async () => {
         if (res.status === "fulfilled" && res.value) {
             activeStreamsForChat.push({
                 id: res.value.id,
-                slug: res.value.slug,
                 streamerName: res.value.streamer,
                 chatRoomId: res.value.chatRoomId
             })
-            console.log(`---> ${res.value.streamer} (${res.value.slug}): ${res.value.viewers.toLocaleString()} CCU`)
+            console.log(`---> ${res.value.streamer}: ${res.value.viewers.toLocaleString()} CCU`)
         } else {
             console.error(`---> Gagal menyimpan snapshot:`, res.reason)
         }
