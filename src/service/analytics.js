@@ -1,11 +1,25 @@
 import { prismaClient } from "../application/database.js"
 import { ResponseError } from "../error/responseError.js"
 
+const pluck = (arr, key) => arr.map(item => item[key])
+const sum = arr => arr.reduce((acc, curr) => acc + curr, 0)
+const getPeak = (arr) => Math.max(...arr, 0)
+const getAverage = (arr, decimals = 2) => {
+    if (arr.length === 0) return 0
+    return parseFloat((sum(arr) / arr.length).toFixed(decimals))
+}
+const roundedTime = (time) => {
+    return Math.round(new Date(time).getTime() / 30000) * 30000
+}
+
 const getLiveAnalytics = async (slug) => {
     const stream = await prismaClient.livestream.findUnique({
         where: { slug },
         include: {
             snapshots: {
+                orderBy: { recordedAt: "asc" },
+            },
+            chatSnapshots: {
                 orderBy: { recordedAt: "asc" },
             }
         }
@@ -14,14 +28,21 @@ const getLiveAnalytics = async (slug) => {
     if (!stream || stream.snapshots.length === 0) {
         throw new ResponseError(404, "Data snapshot penonton belum tersedia.")
     }
-
     const snapshots = stream.snapshots
-    const viewerCounts = snapshots.map(s => s.viewCount)
 
-    const peakViewers = Math.max(...viewerCounts)
+    const viewerCounts = pluck(snapshots, "viewCount")
+    const peakViewers = getPeak(viewerCounts)
+    const avgViewers = getAverage(viewerCounts, 2)
 
-    const totalSum = viewerCounts.reduce((acc, curr) => acc + curr, 0)
-    const avgViewers = parseFloat((totalSum / viewerCounts.length).toFixed(2))
+    const chatCounts = pluck(stream.chatSnapshots || [], "messageCount")
+    const totalChat = sum(chatCounts)
+    const peakChat = getPeak(chatCounts)
+    const avgChat = getAverage(chatCounts, 1)
+
+    const chatMap = new Map()
+    for (const cs of (stream.chatSnapshots || [])) {
+        chatMap.set(roundedTime(cs.recordedAt), cs.messageCount)
+    }
 
     const chartData = snapshots.map((s) => ({
         timestamp: s.recordedAt.toISOString(),
@@ -29,7 +50,8 @@ const getLiveAnalytics = async (slug) => {
             hour: '2-digit',
             minute: '2-digit'
         }),
-        viewers: s.viewCount
+        viewers: s.viewCount,
+        chatCount: chatMap.get(roundedTime(s.recordedAt)) || 0
     }))
 
     return {
@@ -40,6 +62,9 @@ const getLiveAnalytics = async (slug) => {
         streamer: stream.streamerName,
         peakViewers,
         avgViewers,
+        totalChat,
+        peakChat,
+        avgChat,
         totalSnapshots: snapshots.length,
         chartData,
     }
@@ -72,6 +97,10 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
                 where: hasFilter ? { recordedAt: snapshotWhere } : undefined,
                 orderBy: { recordedAt: "asc" },
             },
+            chatSnapshots: {
+                where: hasFilter ? { recordedAt: snapshotWhere } : undefined,
+                orderBy: { recordedAt: "asc" },
+            }
         },
     })
 
@@ -104,15 +133,16 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
     const timeMap = new Map()
     const streamersMap = new Map()
 
-    const roundedTime = (time) => {
-        return Math.round(new Date(time).getTime() / 30000) * 30000
-    }
-
     for (const stream of activeStreams) {
         if (!stream.snapshots || stream.snapshots.length === 0) continue
 
         const name = stream.streamerName.replace(" JKT48", "")
-        const counts = stream.snapshots.map(s => s.viewCount)
+
+        const counts = pluck(stream.snapshots, "viewCount")
+        const chatCounts = pluck(stream.chatSnapshots || [], "messageCount")
+        const totalChat = sum(chatCounts)
+        const peakChat = getPeak(chatCounts)
+        const avgChat = getAverage(chatCounts, 1)
 
         const lastSnapshot = stream.snapshots[stream.snapshots.length - 1]
         const lastRecordedAt = roundedTime(lastSnapshot?.recordedAt || stream.liveAt)
@@ -122,8 +152,11 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
             liveAt: stream.liveAt,
             avgViewers: stream.avgViewers,
             totalSnapshots: stream.snapshots.length,
+            totalChat,
+            peakChat,
+            avgChat,
             fullName: stream.streamerName,
-            peakViewers: Math.max(...counts, 0),
+            peakViewers: getPeak(counts),
             duration: formatDuration(stream.liveAt, lastRecordedAt),
             endAt: stream.endAt
         }
@@ -157,6 +190,19 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
             timeEntry[name] = snap.viewCount
             timeEntry[`_${name}_slug`] = stream.slug
         }
+
+        for (const chat of (stream.chatSnapshots || [])) {
+            const rawTime = roundedTime(chat.recordedAt)
+
+            if (!timeMap.has(rawTime)) {
+                timeMap.set(rawTime, {
+                    timeLabel: rawTime
+                })
+            }
+
+            const timeEntry = timeMap.get(rawTime)
+            timeEntry[`_${name}_chat`] = chat.messageCount
+        }
     }
 
     const chartData = Array.from(timeMap.values()).sort((a, b) =>
@@ -167,7 +213,7 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
         chartData,
         streamers: Array.from(streamersMap.entries()).map(([name, data]) => ({ name, ...data }))
     }
-};
+}
 
 export const analytics = {
     getLiveAnalytics,
