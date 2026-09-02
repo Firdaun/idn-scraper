@@ -54,6 +54,8 @@ class ChatPollerService {
                 socket.send(`USER ${guestUser} 0 * :${guestUser}\r\n`)
             })
 
+            let isJoined = false
+
             socket.on("message", (data) => {
                 const rawLine = data.toString()
 
@@ -62,7 +64,8 @@ class ChatPollerService {
                     return
                 }
 
-                if (rawLine.includes(" 001 ") || rawLine.includes(" 376 ")) {
+                if (!isJoined && (rawLine.includes(" 001 ") || rawLine.includes(" 376 "))) {
+                    isJoined = true
                     socket.send(`JOIN #${chatRoomId}\r\n`)
 
                     const heimdallPayload = {
