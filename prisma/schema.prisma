@@ -30,10 +30,9 @@ model Livestream {
 
 model Snapshot {
   id              Int        @id @default(autoincrement())
-  viewCount       Int        // Penonton bersamaan (CCU)
+  viewCount       Int
   recordedAt      DateTime   @default(now())
 
-  // Relationship
   livestreamId    String
   livestream      Livestream @relation(fields: [livestreamId], references: [id], onDelete: Cascade)
 
