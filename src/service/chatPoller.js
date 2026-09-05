@@ -1,24 +1,28 @@
 import WebSocket from "ws"
 import { prismaClient } from "../application/database.js"
+import { analyzeSentiment, extractKeywords } from "../utils/sentiment.js"
 
 class ChatPollerService {
     constructor() {
         this.activeConnections = new Map()
     }
 
-    isRealUserComment(rawIrcLine) {
+    extractUserComment(rawIrcLine) {
         if (!rawIrcLine.includes("PRIVMSG") || rawIrcLine.includes("IDNHeimdall")) {
-            return false
+            return null
         }
 
         const jsonStartIndex = rawIrcLine.indexOf(" :{")
-        if (jsonStartIndex === -1) return false
+        if (jsonStartIndex === -1) return null
 
         try {
             const payload = JSON.parse(rawIrcLine.slice(jsonStartIndex + 2))
-            return Boolean(payload?.chat?.message && typeof payload.chat.message === "string")
+            if (payload?.chat?.message && typeof payload.chat.message === "string") {
+                return payload.chat.message
+            }
+            return null
         } catch {
-            return false
+            return null
         }
     }
 
@@ -31,6 +35,10 @@ class ChatPollerService {
         const guestUuid = crypto.randomUUID()
         const connectionState = {
             messageCount: 0,
+            positiveCount: 0,
+            neutralCount: 0,
+            negativeCount: 0,
+            wordFrequency: new Map(),
             livestreamId,
             streamerName,
             chatRoomId,
@@ -81,8 +89,26 @@ class ChatPollerService {
                     return
                 }
 
-                if (this.isRealUserComment(rawLine)) {
+                const commentText = this.extractUserComment(rawLine)
+                if (commentText) {
                     connectionState.messageCount++
+
+                    // 1. Analisis Sentimen per interval 30 detik
+                    const { sentiment } = analyzeSentiment(commentText)
+                    if (sentiment === "positive") {
+                        connectionState.positiveCount++
+                    } else if (sentiment === "negative") {
+                        connectionState.negativeCount++
+                    } else {
+                        connectionState.neutralCount++
+                    }
+
+                    // 2. Akumulasi Word Cloud di memori RAM selama stream berlangsung
+                    const words = extractKeywords(commentText)
+                    for (const word of words) {
+                        const currentCount = connectionState.wordFrequency.get(word) || 0
+                        connectionState.wordFrequency.set(word, currentCount + 1)
+                    }
                 }
             })
 
@@ -106,20 +132,49 @@ class ChatPollerService {
         }
     }
 
-    disconnectChat(livestreamId) {
+    async disconnectChat(livestreamId) {
         const conn = this.activeConnections.get(livestreamId)
-        if (conn) {
+        if (!conn) return
+
+        // Langsung hapus dari koneksi aktif agar tidak diproses ganda
+        this.activeConnections.delete(livestreamId)
+
+        try {
+            if (conn.socket && (conn.socket.readyState === WebSocket.OPEN || conn.socket.readyState === WebSocket.CONNECTING)) {
+                conn.socket.close()
+            }
+        } catch (e) {}
+
+        console.log(`[Chat Worker] Menghentikan pemantauan chat: ${conn.streamerName}`)
+
+        // Simpan Top 50 Kata ke database (Word Cloud) jika ada akumulasi kata
+        if (conn.wordFrequency && conn.wordFrequency.size > 0) {
             try {
-                if (conn.socket && (conn.socket.readyState === WebSocket.OPEN || conn.socket.readyState === WebSocket.CONNECTING)) {
-                    conn.socket.close()
+                const topWords = Array.from(conn.wordFrequency.entries())
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 50)
+                    .map(([word, count]) => ({
+                        livestreamId,
+                        word,
+                        count
+                    }))
+
+                if (topWords.length > 0) {
+                    await prismaClient.chatTopWord.createMany({
+                        data: topWords,
+                        skipDuplicates: true
+                    })
+                    console.log(`[Word Cloud] Berhasil menyimpan ${topWords.length} kata teratas untuk ${conn.streamerName}`)
                 }
-            } catch (e) {}
-            console.log(`[Chat Worker] Menghentikan pemantauan chat: ${conn.streamerName}`)
-            this.activeConnections.delete(livestreamId)
+            } catch (err) {
+                console.error(`[Word Cloud Error] Gagal menyimpan kata teratas (${conn.streamerName}):`, err.message)
+            } finally {
+                conn.wordFrequency.clear()
+            }
         }
     }
 
-    syncActiveStreams(activeLiveStreams) {
+    async syncActiveStreams(activeLiveStreams) {
         const activeIds = new Set(activeLiveStreams.map(s => s.id))
 
         for (const live of activeLiveStreams) {
@@ -135,7 +190,7 @@ class ChatPollerService {
 
         for (const id of this.activeConnections.keys()) {
             if (!activeIds.has(id)) {
-                this.disconnectChat(id)
+                await this.disconnectChat(id)
             }
         }
     }
@@ -147,15 +202,25 @@ class ChatPollerService {
 
         for (const [livestreamId, conn] of this.activeConnections.entries()) {
             const count = conn.messageCount
+            const positiveCount = conn.positiveCount
+            const neutralCount = conn.neutralCount
+            const negativeCount = conn.negativeCount
+
             conn.messageCount = 0
+            conn.positiveCount = 0
+            conn.neutralCount = 0
+            conn.negativeCount = 0
 
             records.push({
                 livestreamId,
                 messageCount: count,
+                positiveCount,
+                neutralCount,
+                negativeCount,
                 recordedAt: batchTime
             })
 
-            console.log(`[Chat Snapshot] ${conn.streamerName} -> ${count} Pesan (${new Date(batchTime).toLocaleTimeString("id-ID")})`)
+            console.log(`[Chat Snapshot] ${conn.streamerName} -> ${count} Pesan (+${positiveCount} =${neutralCount} -${negativeCount}) (${new Date(batchTime).toLocaleTimeString("id-ID")})`)
         }
 
         try {

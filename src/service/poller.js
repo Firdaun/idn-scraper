@@ -79,7 +79,7 @@ const handleEndedStreams = async (activeSlugs) => {
         })
 
         chatRoomCache.delete(stream.slug)
-        chatPoller.disconnectChat(stream.id)
+        await chatPoller.disconnectChat(stream.id)
 
         console.log(`[Live Berakhir] ${stream.streamerName} telah selesai live. endAt di-set ke: ${new Date(finalEndAt).toLocaleTimeString("id-ID")}`)
     }
@@ -103,7 +103,7 @@ const saveSnapshot = async () => {
     await handleEndedStreams(activeSlugs)
 
     if (jkt48Lives.length === 0) {
-        chatPoller.syncActiveStreams([])
+        await chatPoller.syncActiveStreams([])
         console.log(`[${new Date().toLocaleTimeString("id-ID")}] Tidak ada member JKT48 yang sedang live.`)
         return []
     }
@@ -130,7 +130,7 @@ const saveSnapshot = async () => {
         }
     })
 
-    chatPoller.syncActiveStreams(activeStreamsForChat)
+    await chatPoller.syncActiveStreams(activeStreamsForChat)
     await chatPoller.saveChatSnapshots(batchTime)
 
     return jkt48Lives

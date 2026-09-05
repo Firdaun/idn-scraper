@@ -21,6 +21,10 @@ const getLiveAnalytics = async (slug) => {
             },
             chatSnapshots: {
                 orderBy: { recordedAt: "asc" },
+            },
+            topWords: {
+                orderBy: { count: "desc" },
+                take: 50,
             }
         }
     })
@@ -39,19 +43,61 @@ const getLiveAnalytics = async (slug) => {
     const peakChat = getPeak(chatCounts)
     const avgChat = getAverage(chatCounts, 1)
 
-    const chatMap = new Map()
-    for (const cs of (stream.chatSnapshots || [])) {
-        chatMap.set(roundedTime(cs.recordedAt), cs.messageCount)
+    // Agregasi sentimen keseluruhan
+    const positiveCounts = pluck(stream.chatSnapshots || [], "positiveCount")
+    const neutralCounts = pluck(stream.chatSnapshots || [], "neutralCount")
+    const negativeCounts = pluck(stream.chatSnapshots || [], "negativeCount")
+
+    const totalPositive = sum(positiveCounts)
+    const totalNeutral = sum(neutralCounts)
+    const totalNegative = sum(negativeCounts)
+    const totalSentimentMessages = totalPositive + totalNeutral + totalNegative
+
+    const sentiment = {
+        positive: totalPositive,
+        neutral: totalNeutral,
+        negative: totalNegative,
+        positivePercentage: totalSentimentMessages > 0 ? parseFloat(((totalPositive / totalSentimentMessages) * 100).toFixed(1)) : 0,
+        neutralPercentage: totalSentimentMessages > 0 ? parseFloat(((totalNeutral / totalSentimentMessages) * 100).toFixed(1)) : 0,
+        negativePercentage: totalSentimentMessages > 0 ? parseFloat(((totalNegative / totalSentimentMessages) * 100).toFixed(1)) : 0,
     }
 
-    const chartData = snapshots.map((s) => ({
-        timestamp: s.recordedAt.toISOString(),
-        timeLabel: new Date(s.recordedAt).toLocaleTimeString('id-ID', {
-            hour: '2-digit',
-            minute: '2-digit'
-        }),
-        viewers: s.viewCount,
-        chatCount: chatMap.get(roundedTime(s.recordedAt)) || 0
+    const chatMap = new Map()
+    for (const cs of (stream.chatSnapshots || [])) {
+        chatMap.set(roundedTime(cs.recordedAt), {
+            chatCount: cs.messageCount,
+            positiveCount: cs.positiveCount || 0,
+            neutralCount: cs.neutralCount || 0,
+            negativeCount: cs.negativeCount || 0,
+        })
+    }
+
+    const chartData = snapshots.map((s) => {
+        const timeKey = roundedTime(s.recordedAt)
+        const chatInfo = chatMap.get(timeKey) || {
+            chatCount: 0,
+            positiveCount: 0,
+            neutralCount: 0,
+            negativeCount: 0
+        }
+
+        return {
+            timestamp: s.recordedAt.toISOString(),
+            timeLabel: new Date(s.recordedAt).toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit'
+            }),
+            viewers: s.viewCount,
+            chatCount: chatInfo.chatCount,
+            positiveCount: chatInfo.positiveCount,
+            neutralCount: chatInfo.neutralCount,
+            negativeCount: chatInfo.negativeCount,
+        }
+    })
+
+    const wordCloud = (stream.topWords || []).map((w) => ({
+        text: w.word,
+        value: w.count,
     }))
 
     return {
@@ -66,8 +112,31 @@ const getLiveAnalytics = async (slug) => {
         peakChat,
         avgChat,
         totalSnapshots: snapshots.length,
+        sentiment,
+        wordCloud,
         chartData,
     }
+}
+
+const getLiveWordCloud = async (slug) => {
+    const stream = await prismaClient.livestream.findUnique({
+        where: { slug },
+        include: {
+            topWords: {
+                orderBy: { count: "desc" },
+                take: 50,
+            }
+        }
+    })
+
+    if (!stream) {
+        throw new ResponseError(404, "Data livestream belum ditemukan.")
+    }
+
+    return (stream.topWords || []).map((w) => ({
+        text: w.word,
+        value: w.count,
+    }))
 }
 
 const getMultiLiveAnalytics = async (startDate, endDate) => {
@@ -144,6 +213,13 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
         const peakChat = getPeak(chatCounts)
         const avgChat = getAverage(chatCounts, 1)
 
+        const positiveCounts = pluck(stream.chatSnapshots || [], "positiveCount")
+        const neutralCounts = pluck(stream.chatSnapshots || [], "neutralCount")
+        const negativeCounts = pluck(stream.chatSnapshots || [], "negativeCount")
+        const totalPositive = sum(positiveCounts)
+        const totalNeutral = sum(neutralCounts)
+        const totalNegative = sum(negativeCounts)
+
         const lastSnapshot = stream.snapshots[stream.snapshots.length - 1]
         const lastRecordedAt = roundedTime(lastSnapshot?.recordedAt || stream.liveAt)
 
@@ -155,6 +231,9 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
             totalChat,
             peakChat,
             avgChat,
+            totalPositive,
+            totalNeutral,
+            totalNegative,
             fullName: stream.streamerName,
             peakViewers: getPeak(counts),
             duration: formatDuration(stream.liveAt, lastRecordedAt),
@@ -202,6 +281,9 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
 
             const timeEntry = timeMap.get(rawTime)
             timeEntry[`_${name}_chat`] = chat.messageCount
+            timeEntry[`_${name}_pos`] = chat.positiveCount || 0
+            timeEntry[`_${name}_neu`] = chat.neutralCount || 0
+            timeEntry[`_${name}_neg`] = chat.negativeCount || 0
         }
     }
 
@@ -217,5 +299,6 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
 
 export const analytics = {
     getLiveAnalytics,
+    getLiveWordCloud,
     getMultiLiveAnalytics
 }

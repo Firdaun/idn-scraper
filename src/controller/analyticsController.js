@@ -13,6 +13,19 @@ export const getAnalytics = async (req, res, next) => {
     }
 }
 
+export const getWordCloud = async (req, res, next) => {
+    try {
+        const { slug } = req.params
+        const result = await analytics.getLiveWordCloud(slug)
+        res.status(200).json({
+            success: true,
+            data: result
+        })
+    } catch (e) {
+        next(e)
+    }
+}
+
 export const getAllMultiLive = async (req, res, next) => {
     try {
         const { startDate, endDate } = req.query
