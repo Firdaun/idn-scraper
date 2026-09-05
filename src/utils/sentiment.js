@@ -4,36 +4,52 @@ export const STOPWORDS = new Set([
     // Kata ganti & panggilan
     "aku", "kamu", "dia", "mereka", "kita", "kami", "kalian", "gua", "gue", "gw",
     "lu", "lo", "elu", "elo", "saya", "anda", "kak", "kakak", "ka", "dek", "adek",
-    "bang", "mas", "mbak", "mba", "min", "mimin", "admin", "bro", "sis", "ges",
-    "guys", "gaes", "cuy", "gan", "bray",
+    "bang", "mas", "mbak", "mba", "ce", "cece", "ci", "cici", "min", "mimin",
+    "admin", "bro", "sis", "ges", "guys", "gaes", "cuy", "gan", "bray", "kmu",
 
-    // Kata sambung & preposisi
+    // Kata sambung, preposisi & partikel
     "yang", "yg", "di", "ke", "dari", "dan", "atau", "tapi", "tetapi", "namun",
     "karena", "sebab", "maka", "sehingga", "jika", "kalau", "kalo", "klo", "kl",
     "untuk", "buat", "utk", "bt", "dengan", "dgn", "sama", "oleh", "pada", "kepada",
-    "tentang", "seperti", "bagai", "bagaikan", "adalah", "yaitu", "yakni",
+    "tentang", "seperti", "bagai", "bagaikan", "adalah", "yaitu", "yakni", "nya", "ada",
+    "biar", "agar", "supaya", "jadi", "padahal", "pdhl", "sampe", "sampai", "smpe",
 
     // Penunjuk & partikel penegas
     "ini", "itu", "nih", "tuh", "deh", "dong", "sih", "kan", "kok", "loh", "lho",
     "kah", "pun", "ya", "yaa", "yaaa", "iya", "iy", "y", "ok", "oke", "sip", "lah",
-    "dah", "nah", "tu", "ni", "dongg", "dehh", "sihh", "ygy",
+    "dah", "nah", "tu", "ni", "dongg", "dehh", "sihh", "ygy", "gitu", "gt", "gituu",
+    "emang", "emg", "lahh", "donggg", "yah",
+
+    // Kata negasi & penolakan (tidak masuk word cloud)
+    "tidak", "tak", "tdk", "ga", "gak", "gk", "ngga", "nggak", "bukan", "bkn",
+    "kurang", "krg", "jangan", "jgn",
 
     // Keterangan waktu, aspek, & kuantitas
     "udah", "sudah", "dah", "udh", "belum", "blm", "lagi", "lg", "sedang", "sdg",
     "akan", "mau", "pengen", "ingin", "bisa", "dapat", "dpt", "boleh", "harus",
-    "kudu", "paling", "sangat", "amat", "banget", "bgt", "bngt", "bnget", "sekali", "agak", "cuma",
-    "hanya", "cuman", "doang", "aja", "saja", "juga", "jg", "masih", "msh", "pernah",
-    "selalu", "sering", "terus", "trs", "tadi", "td", "sekarang", "skrg", "nanti",
-    "ntar", "entar", "besok", "kemarin", "kmrn",
+    "kudu", "paling", "sangat", "amat", "banget", "bgt", "bngt", "bnget", "bangett",
+    "sekali", "agak", "cuma", "hanya", "cuman", "doang", "aja", "saja", "juga", "jg",
+    "masih", "msh", "pernah", "selalu", "sering", "terus", "trus", "trs", "tadi", "td",
+    "sekarang", "skrg", "nanti", "ntar", "entar", "besok", "kemarin", "kmrn", "dulu", "dlu",
+    "mulu", "banyak", "bnyk", "kali", "terlalu", "abis", "habis", "hari", "waktunya", "tumben",
+    "makin",
 
     // Kata tanya
     "apa", "apaan", "apakah", "kenapa", "knp", "mengapa", "bagaimana", "gimana",
     "gmn", "bgmn", "siapa", "kapan", "dimana", "kemana", "darimana", "berapa", "brapa",
+    "mana",
+
+    // Kata umum percakapan, filler, & seruan
+    "coba", "tau", "tauu", "kayak", "kayaknya", "kek", "keknya", "kira", "kirain",
+    "keliatan", "malah", "pantes", "waduh", "astaga", "wah", "weeh", "widih", "woi", "woy",
+    "oi", "oy", "hadeh", "hadehh", "aduh", "aduhh", "buset", "anjir", "bjir", "jir",
+    "bener", "beneran", "bnr", "cie", "ciee", "bentar", "bntr", "ayo",
 
     // Istilah umum streaming & sapaan pengisi
     "halo", "hallo", "hello", "hai", "hi", "hey", "tes", "test", "cek", "live",
     "streaming", "stream", "nonton", "ikut", "masuk", "hadir", "pamit", "met", "selamat",
-    "pagi", "siang", "sore", "malam", "malem", "mlem"
+    "pagi", "siang", "sore", "malam", "malem", "mlem", "salam", "terimakasih", "makasi",
+    "makasih", "mksh", "makasii", "thx", "thanks", "thank", "you", "and"
 ])
 
 export const NEGATION_WORDS = new Set([
@@ -110,18 +126,27 @@ export const normalizeWord = (word) => {
     if (!word) return ""
     
     // Normalisasi tawa khas Indonesia
-    if (/^(wk)+w?$/i.test(word)) return "wkwk"
-    if (/^(ha)+h?$/i.test(word)) return "haha"
-    if (/^(he)+h?$/i.test(word)) return "hehe"
-    if (/^(xi)+x?$/i.test(word)) return "xixi"
+    if (/^[wk]{2,}$/i.test(word) && word.includes("w") && word.includes("k")) return "wkwk"
+    if (/^[ha]{2,}$/i.test(word) && word.includes("h") && word.includes("a")) return "haha"
+    if (/^[he]{2,}$/i.test(word) && word.includes("h") && word.includes("e")) return "hehe"
+    if (/^[xi]{2,}$/i.test(word) && word.includes("x") && word.includes("i")) return "xixi"
+    if (/^[aowk]{3,}$/i.test(word) && word.includes("w") && word.includes("k")) return "aowk"
 
     // Normalisasi kata serapan/Inggris populer dengan huruf ganda asli yang dipanjangkan
     if (/^go{2,}d$/i.test(word)) return "good"
     if (/^co{2,}l$/i.test(word)) return "cool"
     if (/^swe{2,}t$/i.test(word)) return "sweet"
 
-    // Rampingkan karakter yang berulang >= 3 kali (contoh: 'paraaah' -> 'parah', 'laaag' -> 'lag')
-    return word.replace(/(.)\1{2,}/g, "$1")
+    // Rampingkan karakter yang berulang >= 3 kali di mana saja (contoh: 'paraaah' -> 'parah', 'laaag' -> 'lag', 'mikaaa' -> 'mika')
+    let normalized = word.replace(/(.)\1{2,}/g, "$1")
+
+    // Rampingkan konsonan ganda di akhir kata (contoh: 'mikk' -> 'mik', 'cantikk' -> 'cantik', 'kerenn' -> 'keren', 'parahh' -> 'parah')
+    normalized = normalized.replace(/([b-df-hj-np-tv-z])\1+$/i, "$1")
+
+    // Rampingkan vokal ganda di akhir kata untuk a, i, u (contoh: 'lucuu' -> 'lucu', 'mikaa' -> 'mika', 'lagii' -> 'lagi')
+    normalized = normalized.replace(/([aiu])\1+$/i, "$1")
+
+    return normalized
 }
 
 const GREETINGS = new Set(["pagi", "siang", "sore", "malam", "malem", "datang", "menonton"])
