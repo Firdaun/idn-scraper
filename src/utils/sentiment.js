@@ -8,35 +8,36 @@ export const STOPWORDS = new Set([
     "admin", "bro", "sis", "ges", "guys", "gaes", "cuy", "gan", "bray", "kmu",
 
     // Kata sambung, preposisi & partikel
-    "yang", "yg", "di", "ke", "dari", "dan", "atau", "tapi", "tetapi", "namun",
-    "karena", "sebab", "maka", "sehingga", "jika", "kalau", "kalo", "klo", "kl",
+    "yang", "yg", "di", "ke", "dari", "dri", "dan", "atau", "tapi", "tetapi", "namun",
+    "karena", "sebab", "maka", "sehingga", "jika", "kalau", "kalo", "klo", "kl", "klau",
     "untuk", "buat", "utk", "bt", "dengan", "dgn", "sama", "oleh", "pada", "kepada",
     "tentang", "seperti", "bagai", "bagaikan", "adalah", "yaitu", "yakni", "nya", "ada",
     "biar", "agar", "supaya", "jadi", "padahal", "pdhl", "sampe", "sampai", "smpe",
+    "atas", "brng", "bareng", "mah", "inimah", "gini", "kaya",
 
     // Penunjuk & partikel penegas
     "ini", "itu", "nih", "tuh", "deh", "dong", "sih", "kan", "kok", "loh", "lho",
     "kah", "pun", "ya", "yaa", "yaaa", "iya", "iy", "y", "ok", "oke", "sip", "lah",
     "dah", "nah", "tu", "ni", "dongg", "dehh", "sihh", "ygy", "gitu", "gt", "gituu",
-    "emang", "emg", "lahh", "donggg", "yah",
+    "emang", "emg", "lahh", "donggg", "yah", "disana", "disitu", "situ",
 
     // Kata negasi & penolakan (tidak masuk word cloud)
-    "tidak", "tak", "tdk", "ga", "gak", "gk", "ngga", "nggak", "bukan", "bkn",
-    "kurang", "krg", "jangan", "jgn",
+    "tidak", "tak", "tdk", "ga", "gak", "gk", "ngga", "nggak", "nggk", "engga", "gamau",
+    "bukan", "bkn", "kurang", "krg", "jangan", "jgn",
 
     // Keterangan waktu, aspek, & kuantitas
-    "udah", "sudah", "dah", "udh", "belum", "blm", "lagi", "lg", "sedang", "sdg",
+    "udah", "sudah", "dah", "udh", "belum", "blm", "lagi", "lg", "lgi", "sedang", "sdg",
     "akan", "mau", "pengen", "ingin", "bisa", "dapat", "dpt", "boleh", "harus",
     "kudu", "paling", "sangat", "amat", "banget", "bgt", "bngt", "bnget", "bangett",
     "sekali", "agak", "cuma", "hanya", "cuman", "doang", "aja", "saja", "juga", "jg",
-    "masih", "msh", "pernah", "selalu", "sering", "terus", "trus", "trs", "tadi", "td",
-    "sekarang", "skrg", "nanti", "ntar", "entar", "besok", "kemarin", "kmrn", "dulu", "dlu",
-    "mulu", "banyak", "bnyk", "kali", "terlalu", "abis", "habis", "hari", "waktunya", "tumben",
-    "makin",
+    "masih", "msh", "pernah", "selalu", "sering", "terus", "trus", "trs", "tadi", "td", "tdi",
+    "sekarang", "skrg", "nanti", "ntar", "entar", "tar", "besok", "bsk", "kemarin", "kmrn",
+    "smlm", "dulu", "dlu", "mulu", "banyak", "bnyk", "kali", "terlalu", "abis", "habis",
+    "hari", "waktunya", "tumben", "makin", "pas", "barusan", "akhirnya", "semua", "setiap", "dua",
 
     // Kata tanya
-    "apa", "apaan", "apakah", "kenapa", "knp", "mengapa", "bagaimana", "gimana",
-    "gmn", "bgmn", "siapa", "kapan", "dimana", "kemana", "darimana", "berapa", "brapa",
+    "apa", "apaan", "apakah", "kenapa", "knp", "kenapah", "mengapa", "bagaimana", "gimana",
+    "gmn", "bgmn", "siapa", "kapan", "dimana", "kemana", "kmna", "darimana", "berapa", "brapa",
     "mana",
 
     // Kata umum percakapan, filler, & seruan
@@ -44,17 +45,20 @@ export const STOPWORDS = new Set([
     "keliatan", "malah", "pantes", "waduh", "astaga", "wah", "weeh", "widih", "woi", "woy",
     "oi", "oy", "hadeh", "hadehh", "aduh", "aduhh", "buset", "anjir", "bjir", "jir",
     "bener", "beneran", "bnr", "cie", "ciee", "bentar", "bntr", "ayo",
+    "gapapa", "gajadi", "makanya", "maksudnya", "cenah", "weh",
 
-    // Istilah umum streaming & sapaan pengisi
-    "halo", "hallo", "hello", "hai", "hi", "hey", "tes", "test", "cek", "live",
-    "streaming", "stream", "nonton", "ikut", "masuk", "hadir", "pamit", "met", "selamat",
-    "pagi", "siang", "sore", "malam", "malem", "mlem", "salam", "terimakasih", "makasi",
-    "makasih", "mksh", "makasii", "thx", "thanks", "thank", "you", "and"
+    // Istilah umum streaming & sapaan pengisi / pamitan
+    "halo", "hallo", "hello", "hai", "hi", "hey", "hei", "alo", "hallow", "haloo",
+    "tes", "test", "cek", "live", "streaming", "stream", "nonton", "ikut", "masuk",
+    "hadir", "pamit", "bye", "babay", "papay", "met", "selamat",
+    "pagi", "siang", "sore", "malam", "malem", "mlem", "salam", "assalamualaikum",
+    "alhamdulillah", "shalom", "terimakasih", "makasi", "makasih", "mksh", "makasii",
+    "maaci", "tft", "thankyou", "thx", "thanks", "thank", "you", "and"
 ])
 
 export const NEGATION_WORDS = new Set([
-    "tidak", "tak", "tdk", "ga", "gak", "gk", "ngga", "nggak", "bukan", "bkn",
-    "kurang", "krg", "belum", "blm", "jangan", "jgn"
+    "tidak", "tak", "tdk", "ga", "gak", "gk", "ngga", "nggak", "nggk", "engga", "gamau",
+    "bukan", "bkn", "kurang", "krg", "belum", "blm", "jangan", "jgn"
 ])
 
 export const POSITIVE_WORDS = new Set([
@@ -62,7 +66,7 @@ export const POSITIVE_WORDS = new Set([
     "cantik", "cantiknya", "cantikku", "cakep", "manis", "manisnya", "imut", "gemes",
     "gemoy", "lucu", "lucunya", "keren", "anggun", "glowing", "bening", "rapi",
     "wangi", "kece", "mempesona", "menawan", "cute", "pretty", "beautiful", "gorgeous",
-    "stunning", "shine", "bersinar",
+    "stunning", "shine", "bersinar", "fresh", "indah",
 
     // Emosi positif, rasa sayang & dukungan
     "semangat", "semangatnya", "suka", "cinta", "sayang", "sayangnya", "love", "kangen",
@@ -70,6 +74,7 @@ export const POSITIVE_WORDS = new Set([
     "oshiku", "terbaik", "best", "berkah", "blessing", "selamat", "terharu", "salut",
     "respect", "gokil", "top", "juara", "asik", "asyik", "enjoy", "adem", "sejuk",
     "sukses", "hebat", "proud", "favorit", "gemez", "good", "nice", "cool", "bagus", "bagusnya",
+    "enak", "aman", "wow", "kenyang", "lancar", "congrats", "membaik", "issokey",
 
     // Tawa & kegembiraan
     "wkwk", "wkwkwk", "wkwkwkwk", "haha", "hahaha", "hahahaha", "hehe", "hehehe",
@@ -87,7 +92,9 @@ export const NEGATIVE_WORDS = new Set([
     "jelek", "parah", "garing", "bosen", "boring", "membosankan", "cape", "capek",
     "lelah", "sedih", "kesel", "kecewa", "bete", "males", "malesin", "hancur",
     "payah", "ampas", "sepi", "kacau", "ribet", "aneh", "lemes", "rugi", "buruk",
-    "zonk", "huhu", "hiks", "nangis", "bad", "down", "flop", "toxic"
+    "zonk", "huhu", "hiks", "nangis", "bad", "down", "flop", "toxic",
+    "ngantuk", "laper", "kalah", "marah", "takut", "stres", "serem", "horor",
+    "ngeri", "berisik", "telat", "tepar"
 ])
 
 /**
