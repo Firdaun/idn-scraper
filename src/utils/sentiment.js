@@ -13,13 +13,13 @@ export const STOPWORDS = new Set([
     "untuk", "buat", "utk", "bt", "dengan", "dgn", "sama", "oleh", "pada", "kepada",
     "tentang", "seperti", "bagai", "bagaikan", "adalah", "yaitu", "yakni", "nya", "ada",
     "biar", "agar", "supaya", "jadi", "padahal", "pdhl", "sampe", "sampai", "smpe",
-    "atas", "brng", "bareng", "mah", "inimah", "gini", "kaya",
+    "atas", "brng", "bareng", "mah", "inimah", "gini", "kaya", "for", "gara", "sebelah",
 
     // Penunjuk & partikel penegas
     "ini", "itu", "nih", "tuh", "deh", "dong", "sih", "kan", "kok", "loh", "lho",
     "kah", "pun", "ya", "yaa", "yaaa", "iya", "iy", "y", "ok", "oke", "sip", "lah",
     "dah", "nah", "tu", "ni", "dongg", "dehh", "sihh", "ygy", "gitu", "gt", "gituu",
-    "emang", "emg", "lahh", "donggg", "yah", "disana", "disitu", "situ",
+    "emang", "emg", "lahh", "donggg", "yah", "disana", "disitu", "situ", "the",
 
     // Kata negasi & penolakan (tidak masuk word cloud)
     "tidak", "tak", "tdk", "ga", "gak", "gk", "ngga", "nggak", "nggk", "engga", "gamau",
@@ -34,6 +34,7 @@ export const STOPWORDS = new Set([
     "sekarang", "skrg", "nanti", "ntar", "entar", "tar", "besok", "bsk", "kemarin", "kmrn",
     "smlm", "dulu", "dlu", "mulu", "banyak", "bnyk", "kali", "terlalu", "abis", "habis",
     "hari", "waktunya", "tumben", "makin", "pas", "barusan", "akhirnya", "semua", "setiap", "dua",
+    "dikit", "cukup", "keburu", "pasti", "tinggal", "kadang", "suruh", "diem", "waktu", "today", "day",
 
     // Kata tanya
     "apa", "apaan", "apakah", "kenapa", "knp", "kenapah", "mengapa", "bagaimana", "gimana",
@@ -45,7 +46,7 @@ export const STOPWORDS = new Set([
     "keliatan", "malah", "pantes", "waduh", "astaga", "wah", "weeh", "widih", "woi", "woy",
     "oi", "oy", "hadeh", "hadehh", "aduh", "aduhh", "buset", "anjir", "bjir", "jir",
     "bener", "beneran", "bnr", "cie", "ciee", "bentar", "bntr", "ayo",
-    "gapapa", "gajadi", "makanya", "maksudnya", "cenah", "weh",
+    "gapapa", "gajadi", "makanya", "maksudnya", "cenah", "weh", "katanya", "when", "see", "have", "hati2",
 
     // Istilah umum streaming & sapaan pengisi / pamitan
     "halo", "hallo", "hello", "hai", "hi", "hey", "hei", "alo", "hallow", "haloo",
@@ -233,7 +234,7 @@ export const extractKeywords = (text) => {
         if (
             word.length >= 3 &&
             word.length <= 20 &&
-            !/^\d+$/.test(word) &&
+            (!/\d/.test(word) || word === "jkt48") &&
             !STOPWORDS.has(word)
         ) {
             keywords.push(word)
