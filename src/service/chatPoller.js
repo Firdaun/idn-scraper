@@ -27,22 +27,33 @@ class ChatPollerService {
     }
 
     connectToChat(livestreamId, streamerName, chatRoomId) {
-        if (this.activeConnections.has(livestreamId)) return
         if (!chatRoomId) {
             return
         }
 
+        const existingConn = this.activeConnections.get(livestreamId)
+        if (existingConn) {
+            if (existingConn.socket && existingConn.socket.readyState === WebSocket.OPEN && existingConn.isAlive) {
+                return
+            }
+            try {
+                existingConn.socket?.terminate?.()
+            } catch {}
+        }
+
         const guestUuid = crypto.randomUUID()
         const connectionState = {
-            messageCount: 0,
-            positiveCount: 0,
-            neutralCount: 0,
-            negativeCount: 0,
-            wordFrequency: new Map(),
+            messageCount: existingConn?.messageCount || 0,
+            positiveCount: existingConn?.positiveCount || 0,
+            neutralCount: existingConn?.neutralCount || 0,
+            negativeCount: existingConn?.negativeCount || 0,
+            wordFrequency: existingConn?.wordFrequency || new Map(),
             livestreamId,
             streamerName,
             chatRoomId,
             socket: null,
+            isAlive: true,
+            lastActivity: Date.now()
         }
 
         try {
@@ -55,6 +66,8 @@ class ChatPollerService {
             connectionState.socket = socket
 
             socket.on("open", () => {
+                connectionState.isAlive = true
+                connectionState.lastActivity = Date.now()
                 const randomGuestId = Math.random().toString(36).substring(2, 9)
                 const guestUser = `idn-worker-${randomGuestId}`
 
@@ -62,9 +75,16 @@ class ChatPollerService {
                 socket.send(`USER ${guestUser} 0 * :${guestUser}\r\n`)
             })
 
+            socket.on("pong", () => {
+                connectionState.isAlive = true
+                connectionState.lastActivity = Date.now()
+            })
+
             let isJoined = false
 
             socket.on("message", (data) => {
+                connectionState.isAlive = true
+                connectionState.lastActivity = Date.now()
                 const rawLine = data.toString()
 
                 if (rawLine.startsWith("PING")) {
@@ -93,7 +113,6 @@ class ChatPollerService {
                 if (commentText) {
                     connectionState.messageCount++
 
-                    // 1. Analisis Sentimen per interval 30 detik
                     const { sentiment } = analyzeSentiment(commentText)
                     if (sentiment === "positive") {
                         connectionState.positiveCount++
@@ -103,7 +122,6 @@ class ChatPollerService {
                         connectionState.neutralCount++
                     }
 
-                    // 2. Akumulasi Word Cloud di memori RAM selama stream berlangsung
                     const words = extractKeywords(commentText)
                     for (const word of words) {
                         const currentCount = connectionState.wordFrequency.get(word) || 0
@@ -114,21 +132,24 @@ class ChatPollerService {
 
             socket.on("error", (err) => {
                 console.error(`[Chat Worker Error] (${streamerName}):`, err.message || err)
+                connectionState.isAlive = false
+                try {
+                    socket.terminate()
+                } catch {}
             })
 
             socket.on("close", (code, reason) => {
-                if (this.activeConnections.has(livestreamId)) {
-                    const reasonMsg = reason && reason.length > 0 ? ` - ${reason.toString()}` : ""
-                    console.log(`[Chat Worker] Koneksi chat ${streamerName} terputus (Code: ${code}${reasonMsg}). Akan otomatis dihubungkan ulang.`)
-                    this.activeConnections.delete(livestreamId)
-                }
+                const reasonMsg = reason && reason.length > 0 ? ` - ${reason.toString()}` : ""
+                console.log(`[Chat Worker] Koneksi chat ${streamerName} terputus (Code: ${code}${reasonMsg}). Akan otomatis dihubungkan ulang.`)
+                connectionState.isAlive = false
+                connectionState.socket = null
             })
 
             this.activeConnections.set(livestreamId, connectionState)
 
         } catch (e) {
             console.error(`[Chat Worker] Gagal menghubungkan chat (${streamerName}):`, e.message)
-            this.activeConnections.delete(livestreamId)
+            connectionState.isAlive = false
         }
     }
 
@@ -136,18 +157,16 @@ class ChatPollerService {
         const conn = this.activeConnections.get(livestreamId)
         if (!conn) return
 
-        // Langsung hapus dari koneksi aktif agar tidak diproses ganda
         this.activeConnections.delete(livestreamId)
 
         try {
-            if (conn.socket && (conn.socket.readyState === WebSocket.OPEN || conn.socket.readyState === WebSocket.CONNECTING)) {
-                conn.socket.close()
+            if (conn.socket) {
+                conn.socket.terminate()
             }
         } catch (e) {}
 
         console.log(`[Chat Worker] Menghentikan pemantauan chat: ${conn.streamerName}`)
 
-        // Simpan Top 50 Kata ke database (Word Cloud) jika ada akumulasi kata
         if (conn.wordFrequency && conn.wordFrequency.size > 0) {
             try {
                 const topWords = Array.from(conn.wordFrequency.entries())
@@ -178,13 +197,45 @@ class ChatPollerService {
         const activeIds = new Set(activeLiveStreams.map(s => s.id))
 
         for (const live of activeLiveStreams) {
-            const existingConn = this.activeConnections.get(live.id)
-            const isSocketDead = !existingConn || !existingConn.socket ||
-                existingConn.socket.readyState === WebSocket.CLOSED ||
-                existingConn.socket.readyState === WebSocket.CLOSING
+            const conn = this.activeConnections.get(live.id)
+            const isSocketAlive = conn && conn.socket && conn.socket.readyState === WebSocket.OPEN
 
-            if (isSocketDead) {
+            if (!conn || !conn.socket || conn.socket.readyState === WebSocket.CLOSED || conn.socket.readyState === WebSocket.CLOSING) {
                 this.connectToChat(live.id, live.streamerName, live.chatRoomId)
+                continue
+            }
+
+            if (conn.socket.readyState === WebSocket.CONNECTING) {
+                if (Date.now() - conn.lastActivity > 15000) {
+                    console.log(`[Chat Worker Watchdog] Koneksi ${live.streamerName} hang di status CONNECTING. Memaksa reconnect...`)
+                    try {
+                        conn.socket.terminate()
+                    } catch {}
+                    this.connectToChat(live.id, live.streamerName, live.chatRoomId)
+                }
+                continue
+            }
+
+            if (isSocketAlive) {
+                if (!conn.isAlive) {
+                    console.log(`[Chat Worker Watchdog] Koneksi ${live.streamerName} tidak merespons (mati suri / zombie). Memaksa reconnect...`)
+                    try {
+                        conn.socket.terminate()
+                    } catch {}
+                    this.connectToChat(live.id, live.streamerName, live.chatRoomId)
+                    continue
+                }
+
+                conn.isAlive = false
+                try {
+                    conn.socket.ping()
+                } catch (e) {
+                    console.warn(`[Chat Worker Ping Error] (${live.streamerName}):`, e.message)
+                    try {
+                        conn.socket.terminate()
+                    } catch {}
+                    this.connectToChat(live.id, live.streamerName, live.chatRoomId)
+                }
             }
         }
 
