@@ -7,7 +7,7 @@ class ChatPollerService {
         this.activeConnections = new Map()
     }
 
-    extractUserComment(rawIrcLine) {
+    extractChatPayload(rawIrcLine) {
         if (!rawIrcLine.includes("PRIVMSG") || rawIrcLine.includes("IDNHeimdall")) {
             return null
         }
@@ -17,8 +17,17 @@ class ChatPollerService {
 
         try {
             const payload = JSON.parse(rawIrcLine.slice(jsonStartIndex + 2))
-            if (payload?.chat?.message && typeof payload.chat.message === "string") {
-                return payload.chat.message
+            const message = payload?.chat?.message
+            if (message && typeof message === "string") {
+                const user = payload.user || {}
+                return {
+                    message,
+                    user: {
+                        uuid: user.uuid,
+                        name: user.name,
+                        avatar: user.avatar_url || null
+                    }
+                }
             }
             return null
         } catch {
@@ -48,6 +57,7 @@ class ChatPollerService {
             neutralCount: existingConn?.neutralCount || 0,
             negativeCount: existingConn?.negativeCount || 0,
             wordFrequency: existingConn?.wordFrequency || new Map(),
+            userFrequency: existingConn?.userFrequency || new Map(),
             livestreamId,
             streamerName,
             chatRoomId,
@@ -109,11 +119,11 @@ class ChatPollerService {
                     return
                 }
 
-                const commentText = this.extractUserComment(rawLine)
-                if (commentText) {
+                const chatData = this.extractChatPayload(rawLine)
+                if (chatData) {
                     connectionState.messageCount++
 
-                    const { sentiment } = analyzeSentiment(commentText)
+                    const { sentiment } = analyzeSentiment(chatData.message)
                     if (sentiment === "positive") {
                         connectionState.positiveCount++
                     } else if (sentiment === "negative") {
@@ -122,10 +132,26 @@ class ChatPollerService {
                         connectionState.neutralCount++
                     }
 
-                    const words = extractKeywords(commentText)
+                    const words = extractKeywords(chatData.message)
                     for (const word of words) {
                         const currentCount = connectionState.wordFrequency.get(word) || 0
                         connectionState.wordFrequency.set(word, currentCount + 1)
+                    }
+
+                    const userUuid = chatData.user?.uuid
+                    if (userUuid) {
+                        const existingUser = connectionState.userFrequency.get(userUuid) || {
+                            userUuid,
+                            userName: chatData.user.name,
+                            userAvatar: chatData.user.avatar,
+                            count: 0
+                        }
+                        existingUser.count++
+                        existingUser.userName = chatData.user.name
+                        if (chatData.user.avatar) {
+                            existingUser.userAvatar = chatData.user.avatar
+                        }
+                        connectionState.userFrequency.set(userUuid, existingUser)
                     }
                 }
             })
@@ -191,6 +217,48 @@ class ChatPollerService {
                 conn.wordFrequency.clear()
             }
         }
+
+        if (conn.userFrequency && conn.userFrequency.size > 0) {
+            try {
+                const topChatters = Array.from(conn.userFrequency.values())
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 50)
+                    .map((user) => ({
+                        livestreamId,
+                        userUuid: user.userUuid,
+                        userName: user.userName,
+                        userAvatar: user.userAvatar,
+                        count: user.count
+                    }))
+
+                if (topChatters.length > 0) {
+                    await prismaClient.chatTopUser.createMany({
+                        data: topChatters,
+                        skipDuplicates: true
+                    })
+                    console.log(`[Top Chatters] Berhasil menyimpan ${topChatters.length} chatter teratas untuk ${conn.streamerName}`)
+                }
+            } catch (err) {
+                console.error(`[Top Chatters Error] Gagal menyimpan chatter teratas (${conn.streamerName}):`, err.message)
+            } finally {
+                conn.userFrequency.clear()
+            }
+        }
+    }
+
+    getLiveTopChatters(livestreamId, limit = 50) {
+        const conn = this.activeConnections.get(livestreamId)
+        if (!conn || !conn.userFrequency) return []
+
+        return Array.from(conn.userFrequency.values())
+            .sort((a, b) => b.count - a.count)
+            .slice(0, limit)
+            .map(u => ({
+                count: u.count,
+                userUuid: u.userUuid,
+                userName: u.userName,
+                userAvatar: u.userAvatar
+            }))
     }
 
     async syncActiveStreams(activeLiveStreams) {

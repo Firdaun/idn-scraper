@@ -26,6 +26,7 @@ model Livestream {
   snapshots        Snapshot[]
   chatSnapshots    ChatSnapshot[]
   topWords         ChatTopWord[]
+  topChatters      ChatTopUser[]
 }
 
 model Snapshot {
@@ -62,5 +63,19 @@ model ChatTopWord {
   livestream   Livestream @relation(fields: [livestreamId], references: [id], onDelete: Cascade)
 
   @@unique([livestreamId, word])
+  @@index([livestreamId])
+}
+
+model ChatTopUser {
+  id           Int        @id @default(autoincrement())
+  userUuid     String
+  userName     String
+  userAvatar   String?
+  count        Int        @default(0)
+
+  livestreamId String
+  livestream   Livestream @relation(fields: [livestreamId], references: [id], onDelete: Cascade)
+
+  @@unique([livestreamId, userUuid])
   @@index([livestreamId])
 }

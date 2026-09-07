@@ -1,5 +1,6 @@
 import { prismaClient } from "../application/database.js"
 import { ResponseError } from "../error/responseError.js"
+import { chatPoller } from "./chatPoller.js"
 
 const pluck = (arr, key) => arr.map(item => item[key])
 const sum = arr => arr.reduce((acc, curr) => acc + curr, 0)
@@ -23,6 +24,10 @@ const getLiveAnalytics = async (slug) => {
                 orderBy: { recordedAt: "asc" },
             },
             topWords: {
+                orderBy: { count: "desc" },
+                take: 50,
+            },
+            topChatters: {
                 orderBy: { count: "desc" },
                 take: 50,
             }
@@ -100,6 +105,20 @@ const getLiveAnalytics = async (slug) => {
         value: w.count,
     }))
 
+    let topChatters = (stream.topChatters || []).map((c) => ({
+        count: c.count,
+        userUuid: c.userUuid,
+        userName: c.userName,
+        userAvatar: c.userAvatar
+    }))
+
+    if (!stream.endAt) {
+        const liveChatters = chatPoller.getLiveTopChatters(stream.id, 50)
+        if (liveChatters.length > 0) {
+            topChatters = liveChatters
+        }
+    }
+
     return {
         livestreamId: stream.id,
         liveAt: stream.liveAt,
@@ -114,6 +133,7 @@ const getLiveAnalytics = async (slug) => {
         totalSnapshots: snapshots.length,
         sentiment,
         wordCloud,
+        topChatters,
         chartData,
     }
 }
@@ -136,6 +156,36 @@ const getLiveWordCloud = async (slug) => {
     return (stream.topWords || []).map((w) => ({
         text: w.word,
         value: w.count,
+    }))
+}
+
+const getLiveTopChatters = async (slug) => {
+    const stream = await prismaClient.livestream.findUnique({
+        where: { slug },
+        include: {
+            topChatters: {
+                orderBy: { count: "desc" },
+                take: 50,
+            }
+        }
+    })
+
+    if (!stream) {
+        throw new ResponseError(404, "Data livestream belum ditemukan.")
+    }
+
+    if (!stream.endAt) {
+        const liveChatters = chatPoller.getLiveTopChatters(stream.id, 50)
+        if (liveChatters.length > 0) {
+            return liveChatters
+        }
+    }
+
+    return (stream.topChatters || []).map((c) => ({
+        count: c.count,
+        userUuid: c.userUuid,
+        userName: c.userName,
+        userAvatar: c.userAvatar
     }))
 }
 
@@ -300,5 +350,6 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
 export const analytics = {
     getLiveAnalytics,
     getLiveWordCloud,
+    getLiveTopChatters,
     getMultiLiveAnalytics
 }
