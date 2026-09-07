@@ -246,21 +246,6 @@ class ChatPollerService {
         }
     }
 
-    getLiveTopChatters(livestreamId, limit = 50) {
-        const conn = this.activeConnections.get(livestreamId)
-        if (!conn || !conn.userFrequency) return []
-
-        return Array.from(conn.userFrequency.values())
-            .sort((a, b) => b.count - a.count)
-            .slice(0, limit)
-            .map(u => ({
-                count: u.count,
-                userUuid: u.userUuid,
-                userName: u.userName,
-                userAvatar: u.userAvatar
-            }))
-    }
-
     async syncActiveStreams(activeLiveStreams) {
         const activeIds = new Set(activeLiveStreams.map(s => s.id))
 
