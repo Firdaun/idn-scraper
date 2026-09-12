@@ -203,6 +203,7 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
         if (!streamersMap.has(name)) {
             streamersMap.set(name, {
                 name,
+                slug: stream.slug,
                 peakViewers,
                 peakChat
             })
