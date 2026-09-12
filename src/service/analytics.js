@@ -78,15 +78,14 @@ const getLiveAnalytics = async (slug) => {
     for (const dataStrm of memberStreams) {
         if (!dataStrm.snapshots || dataStrm.snapshots.length === 0) continue
 
-        const isCurrentActive = dataStrm.slug === stream.slug
         const sessionInfo = {
             slug: dataStrm.slug,
             liveAt: dataStrm.liveAt,
             endAt: dataStrm.endAt,
-            avgViewers: (!dataStrm.endAt && isCurrentActive) ? getAverage(pluck(stream.snapshots, "viewCount")) : dataStrm.avgViewers,
-            avgChat: (!dataStrm.endAt && isCurrentActive) ? getAverage(pluck(stream.chatSnapshots || [], "messageCount"), 1) : dataStrm.avgChat,
-            peakViewers: (!dataStrm.endAt && isCurrentActive) ? getPeak(pluck(stream.snapshots, "viewCount")) : dataStrm.peakViewers,
-            peakChat: (!dataStrm.endAt && isCurrentActive) ? getPeak(pluck(stream.chatSnapshots || [], "messageCount")) : dataStrm.peakChat,
+            avgViewers: dataStrm.avgViewers,
+            avgChat: dataStrm.avgChat,
+            peakViewers: dataStrm.peakViewers,
+            peakChat: dataStrm.peakChat,
         }
 
         if (!streamersMap.has(name)) {
