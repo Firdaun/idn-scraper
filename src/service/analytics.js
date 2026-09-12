@@ -11,31 +11,6 @@ export const getAverage = (arr, decimals = 2) => {
 const roundedTime = (time) => {
     return Math.round(new Date(time).getTime() / 30000) * 30000
 }
-
-const formatDuration = (liveAt, lastRecordedAt) => {
-    if (!liveAt || !lastRecordedAt) return "0 Seconds"
-    const totalSeconds = Math.max(0, Math.floor((new Date(lastRecordedAt) - new Date(liveAt)) / 1000))
-
-    if (totalSeconds < 60) {
-        return `${totalSeconds} ${totalSeconds === 1 ? "Second" : "Seconds"}`
-    }
-
-    const totalMinutes = Math.floor(totalSeconds / 60)
-
-    if (totalMinutes < 60) {
-        return `${totalMinutes} ${totalMinutes === 1 ? "Minute" : "Minutes"}`
-    }
-
-    const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
-
-    const hourText = `${hours} ${hours === 1 ? "Hour" : "Hours"}`
-    if (minutes === 0) return hourText
-
-    const minuteText = `${minutes} ${minutes === 1 ? "Minute" : "Minutes"}`
-    return `${hourText} ${minuteText}`
-}
-
 const getLiveAnalytics = async (slug) => {
     const stream = await prismaClient.livestream.findUnique({
         where: { slug },
@@ -71,9 +46,9 @@ const getLiveAnalytics = async (slug) => {
         positive: totalPositive,
         neutral: totalNeutral,
         negative: totalNegative,
-        positivePercentage: parseFloat(((totalPositive / totalMessage) * 100).toFixed(1)),
-        neutralPercentage: parseFloat(((totalNeutral / totalMessage) * 100).toFixed(1)),
-        negativePercentage: parseFloat(((totalNegative / totalMessage) * 100).toFixed(1))
+        positivePercentage: totalMessage > 0 ? parseFloat(((totalPositive / totalMessage) * 100).toFixed(1)) : 0,
+        neutralPercentage: totalMessage > 0 ? parseFloat(((totalNeutral / totalMessage) * 100).toFixed(1)) : 0,
+        negativePercentage: totalMessage > 0 ? parseFloat(((totalNegative / totalMessage) * 100).toFixed(1)) : 0
     }
 
     const wordCloud = (stream.topWords).map((w) => ({
@@ -92,10 +67,7 @@ const getLiveAnalytics = async (slug) => {
         orderBy: { liveAt: "asc" },
         include: {
             snapshots: {
-                orderBy: { recordedAt: "asc" },
-            },
-            chatSnapshots: {
-                orderBy: { recordedAt: "asc" },
+                take: 1,
             }
         }
     })
@@ -105,20 +77,14 @@ const getLiveAnalytics = async (slug) => {
 
     for (const dataStrm of memberStreams) {
         if (!dataStrm.snapshots || dataStrm.snapshots.length === 0) continue
-        
-        const LastSnapshot = dataStrm.snapshots[dataStrm.snapshots.length - 1]
-        const LastRecordedAt = roundedTime(LastSnapshot?.recordedAt)
-        const avgChat = getAverage(pluck(dataStrm.chatSnapshots, "messageCount"), 1)
-
         const sessionInfo = {
             slug: dataStrm.slug,
             liveAt: dataStrm.liveAt,
             endAt: dataStrm.endAt,
             avgViewers: dataStrm.avgViewers,
-            avgChat: avgChat,
+            avgChat: dataStrm.avgChat,
             peakViewers: dataStrm.peakViewers,
-            peakChat: getPeak(pluck(dataStrm.chatSnapshots, "messageCount")),
-            duration: formatDuration(dataStrm.liveAt, LastRecordedAt),
+            peakChat: dataStrm.peakChat,
         }
 
         if (!streamersMap.has(name)) {
