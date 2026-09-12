@@ -210,30 +210,6 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
 
     if (activeStreams.length === 0) return { chartData: [], streamers: [] }
 
-    const formatDuration = (liveAt, lastRecordedAt) => {
-        if (!liveAt || !lastRecordedAt) return "0 Seconds"
-        const totalSeconds = Math.max(0, Math.floor((new Date(lastRecordedAt) - new Date(liveAt)) / 1000))
-
-        if (totalSeconds < 60) {
-            return `${totalSeconds} ${totalSeconds === 1 ? "Second" : "Seconds"}`
-        }
-
-        const totalMinutes = Math.floor(totalSeconds / 60)
-
-        if (totalMinutes < 60) {
-            return `${totalMinutes} ${totalMinutes === 1 ? "Minute" : "Minutes"}`
-        }
-
-        const hours = Math.floor(totalMinutes / 60)
-        const minutes = totalMinutes % 60
-
-        const hourText = `${hours} ${hours === 1 ? "Hour" : "Hours"}`
-        if (minutes === 0) return hourText
-
-        const minuteText = `${minutes} ${minutes === 1 ? "Minute" : "Minutes"}`
-        return `${hourText} ${minuteText}`
-    }
-
     const timeMap = new Map()
     const streamersMap = new Map()
 
@@ -241,54 +217,21 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
         if (!stream.snapshots || stream.snapshots.length === 0) continue
 
         const name = stream.streamerName.replace(" JKT48", "")
-
         const counts = pluck(stream.snapshots, "viewCount")
         const chatCounts = pluck(stream.chatSnapshots || [], "messageCount")
-        const totalChat = sum(chatCounts)
+        const peakViewers = getPeak(counts)
         const peakChat = getPeak(chatCounts)
-        const avgChat = getAverage(chatCounts, 1)
-
-        const positiveCounts = pluck(stream.chatSnapshots || [], "positiveCount")
-        const neutralCounts = pluck(stream.chatSnapshots || [], "neutralCount")
-        const negativeCounts = pluck(stream.chatSnapshots || [], "negativeCount")
-        const totalPositive = sum(positiveCounts)
-        const totalNeutral = sum(neutralCounts)
-        const totalNegative = sum(negativeCounts)
-
-        const lastSnapshot = stream.snapshots[stream.snapshots.length - 1]
-        const lastRecordedAt = roundedTime(lastSnapshot?.recordedAt || stream.liveAt)
-
-        const sessionInfo = {
-            slug: stream.slug,
-            liveAt: stream.liveAt,
-            avgViewers: stream.avgViewers,
-            totalSnapshots: stream.snapshots.length,
-            totalChat,
-            peakChat,
-            avgChat,
-            totalPositive,
-            totalNeutral,
-            totalNegative,
-            fullName: stream.streamerName,
-            peakViewers: getPeak(counts),
-            duration: formatDuration(stream.liveAt, lastRecordedAt),
-            endAt: stream.endAt
-        }
 
         if (!streamersMap.has(name)) {
             streamersMap.set(name, {
-                ...sessionInfo,
-                sessions: [sessionInfo]
+                name,
+                peakViewers,
+                peakChat
             })
         } else {
             const existing = streamersMap.get(name)
-            existing.sessions.push(sessionInfo)
-
-            const isCurrentlyLive = !stream.endAt && existing.endAt
-            const isNewer = new Date(stream.liveAt) >= new Date(existing.liveAt)
-            if (isCurrentlyLive || isNewer) {
-                Object.assign(existing, sessionInfo)
-            }
+            existing.peakViewers = Math.max(existing.peakViewers, peakViewers)
+            existing.peakChat = Math.max(existing.peakChat, peakChat)
         }
 
         for (const snap of stream.snapshots) {
@@ -328,7 +271,7 @@ const getMultiLiveAnalytics = async (startDate, endDate) => {
 
     return {
         chartData,
-        streamers: Array.from(streamersMap.entries()).map(([name, data]) => ({ name, ...data }))
+        streamers: Array.from(streamersMap.values())
     }
 }
 
