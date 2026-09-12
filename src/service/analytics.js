@@ -12,6 +12,30 @@ const roundedTime = (time) => {
     return Math.round(new Date(time).getTime() / 30000) * 30000
 }
 
+const formatDuration = (liveAt, lastRecordedAt) => {
+    if (!liveAt || !lastRecordedAt) return "0 Seconds"
+    const totalSeconds = Math.max(0, Math.floor((new Date(lastRecordedAt) - new Date(liveAt)) / 1000))
+
+    if (totalSeconds < 60) {
+        return `${totalSeconds} ${totalSeconds === 1 ? "Second" : "Seconds"}`
+    }
+
+    const totalMinutes = Math.floor(totalSeconds / 60)
+
+    if (totalMinutes < 60) {
+        return `${totalMinutes} ${totalMinutes === 1 ? "Minute" : "Minutes"}`
+    }
+
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+
+    const hourText = `${hours} ${hours === 1 ? "Hour" : "Hours"}`
+    if (minutes === 0) return hourText
+
+    const minuteText = `${minutes} ${minutes === 1 ? "Minute" : "Minutes"}`
+    return `${hourText} ${minuteText}`
+}
+
 const getLiveAnalytics = async (slug) => {
     const stream = await prismaClient.livestream.findUnique({
         where: { slug },
@@ -36,97 +60,85 @@ const getLiveAnalytics = async (slug) => {
     if (!stream || stream.snapshots.length === 0) {
         throw new ResponseError(404, "Data snapshot penonton belum tersedia.")
     }
-    const snapshots = stream.snapshots
 
-    const viewerCounts = pluck(snapshots, "viewCount")
-    const peakViewers = getPeak(viewerCounts)
-    const avgViewers = getAverage(viewerCounts, 2)
-
-    const chatCounts = pluck(stream.chatSnapshots || [], "messageCount")
-    const totalChat = sum(chatCounts)
-    const peakChat = getPeak(chatCounts)
-    const avgChat = getAverage(chatCounts, 1)
-
-    // Agregasi sentimen keseluruhan
-    const positiveCounts = pluck(stream.chatSnapshots || [], "positiveCount")
-    const neutralCounts = pluck(stream.chatSnapshots || [], "neutralCount")
-    const negativeCounts = pluck(stream.chatSnapshots || [], "negativeCount")
-
-    const totalPositive = sum(positiveCounts)
-    const totalNeutral = sum(neutralCounts)
-    const totalNegative = sum(negativeCounts)
-    const totalSentimentMessages = totalPositive + totalNeutral + totalNegative
+    const totalMessage = sum(pluck(stream.chatSnapshots, "messageCount"))
+    const totalPositive = sum(pluck(stream.chatSnapshots, "positiveCount"))
+    const totalNeutral = sum(pluck(stream.chatSnapshots, "neutralCount"))
+    const totalNegative = sum(pluck(stream.chatSnapshots, "negativeCount"))
 
     const sentiment = {
+        totalChat: totalMessage,
         positive: totalPositive,
         neutral: totalNeutral,
         negative: totalNegative,
-        positivePercentage: totalSentimentMessages > 0 ? parseFloat(((totalPositive / totalSentimentMessages) * 100).toFixed(1)) : 0,
-        neutralPercentage: totalSentimentMessages > 0 ? parseFloat(((totalNeutral / totalSentimentMessages) * 100).toFixed(1)) : 0,
-        negativePercentage: totalSentimentMessages > 0 ? parseFloat(((totalNegative / totalSentimentMessages) * 100).toFixed(1)) : 0,
+        positivePercentage: parseFloat(((totalPositive / totalMessage) * 100).toFixed(1)),
+        neutralPercentage: parseFloat(((totalNeutral / totalMessage) * 100).toFixed(1)),
+        negativePercentage: parseFloat(((totalNegative / totalMessage) * 100).toFixed(1))
     }
 
-    const chatMap = new Map()
-    for (const cs of (stream.chatSnapshots || [])) {
-        chatMap.set(roundedTime(cs.recordedAt), {
-            chatCount: cs.messageCount,
-            positiveCount: cs.positiveCount || 0,
-            neutralCount: cs.neutralCount || 0,
-            negativeCount: cs.negativeCount || 0,
-        })
-    }
-
-    const chartData = snapshots.map((s) => {
-        const timeKey = roundedTime(s.recordedAt)
-        const chatInfo = chatMap.get(timeKey) || {
-            chatCount: 0,
-            positiveCount: 0,
-            neutralCount: 0,
-            negativeCount: 0
-        }
-
-        return {
-            timestamp: s.recordedAt.toISOString(),
-            timeLabel: new Date(s.recordedAt).toLocaleTimeString('id-ID', {
-                hour: '2-digit',
-                minute: '2-digit'
-            }),
-            viewers: s.viewCount,
-            chatCount: chatInfo.chatCount,
-            positiveCount: chatInfo.positiveCount,
-            neutralCount: chatInfo.neutralCount,
-            negativeCount: chatInfo.negativeCount,
-        }
-    })
-
-    const wordCloud = (stream.topWords || []).map((w) => ({
+    const wordCloud = (stream.topWords).map((w) => ({
         text: w.word,
         value: w.count,
     }))
 
-    const topChatters = (stream.topChatters || []).map((c) => ({
+    const topChatters = (stream.topChatters).map((c) => ({
         count: c.count,
-        userUuid: c.userUuid,
         userName: c.userName,
         userAvatar: c.userAvatar
     }))
+    
+    const memberStreams = await prismaClient.livestream.findMany({
+        where: { streamerName: stream.streamerName },
+        orderBy: { liveAt: "asc" },
+        include: {
+            snapshots: {
+                orderBy: { recordedAt: "asc" },
+            },
+            chatSnapshots: {
+                orderBy: { recordedAt: "asc" },
+            }
+        }
+    })
+
+    const name = memberStreams[0].streamerName.replace(" JKT48", "")
+    const streamersMap = new Map()
+
+    for (const dataStrm of memberStreams) {
+        if (!dataStrm.snapshots || dataStrm.snapshots.length === 0) continue
+        
+        const LastSnapshot = dataStrm.snapshots[dataStrm.snapshots.length - 1]
+        const LastRecordedAt = roundedTime(LastSnapshot?.recordedAt)
+        const avgChat = getAverage(pluck(dataStrm.chatSnapshots, "messageCount"), 1)
+
+        const sessionInfo = {
+            slug: dataStrm.slug,
+            liveAt: dataStrm.liveAt,
+            endAt: dataStrm.endAt,
+            avgViewers: dataStrm.avgViewers,
+            avgChat: avgChat,
+            peakViewers: dataStrm.peakViewers,
+            peakChat: getPeak(pluck(dataStrm.chatSnapshots, "messageCount")),
+            duration: formatDuration(dataStrm.liveAt, LastRecordedAt),
+        }
+
+        if (!streamersMap.has(name)) {
+            streamersMap.set(name, {
+                sessions: [sessionInfo],
+            })
+        } else {
+            const existing = streamersMap.get(name)
+            existing.sessions.push(sessionInfo)
+        }
+    }
+
+    const streamerData = streamersMap.get(name) || {}
 
     return {
-        livestreamId: stream.id,
-        liveAt: stream.liveAt,
-        slug: stream.slug,
-        title: stream.title,
-        streamer: stream.streamerName,
-        peakViewers,
-        avgViewers,
-        totalChat,
-        peakChat,
-        avgChat,
-        totalSnapshots: snapshots.length,
+        name: name,
+        ...streamerData,
         sentiment,
         wordCloud,
-        topChatters,
-        chartData,
+        topChatters
     }
 }
 
