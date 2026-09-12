@@ -11,10 +11,11 @@ async function runWorker() {
         for (const live of activeLives) {
             try {
                 const result = await analytics.getLiveAnalytics(live.slug)
-                console.log(`\n--- HASIL ANALISIS (${result.streamer}) ---`)
+                const currentSession = result.sessions?.find(s => s.slug === live.slug) || result.sessions?.[result.sessions.length - 1]
+                console.log(`\n--- HASIL ANALISIS (${result.name}) ---`)
                 console.log(JSON.stringify({
-                    streamer: result.streamer,
-                    peakViewers: `${Number(result.peakViewers || 0).toLocaleString("id-ID")} Penonton`
+                    streamer: result.name,
+                    peakViewers: `${Number(currentSession?.peakViewers || 0).toLocaleString("id-ID")} Penonton`
                 }, null, 2))
             } catch (e) {
                 console.log(`[Info] ${live.creator?.name}: ${e.message}`)
