@@ -1,10 +1,10 @@
 import { prismaClient } from "../application/database.js"
 import { ResponseError } from "../error/responseError.js"
 
-const pluck = (arr, key) => arr.map(item => item[key])
-const sum = arr => arr.reduce((acc, curr) => acc + curr, 0)
-const getPeak = (arr) => Math.max(...arr, 0)
-const getAverage = (arr, decimals = 2) => {
+export const pluck = (arr, key) => arr.map(item => item[key])
+export const sum = arr => arr.reduce((acc, curr) => acc + curr, 0)
+export const getPeak = (arr) => Math.max(...arr, 0)
+export const getAverage = (arr, decimals = 2) => {
     if (arr.length === 0) return 0
     return parseFloat((sum(arr) / arr.length).toFixed(decimals))
 }

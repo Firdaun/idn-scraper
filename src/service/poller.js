@@ -1,6 +1,7 @@
 import { prismaClient } from "../application/database.js"
 import { getAllLivestreams, fetchChatRoomId } from "./streamService.js"
 import { chatPoller } from "./chatPoller.js"
+import { getAverage, getPeak, pluck, sum } from "./analytics.js"
 
 const chatRoomCache = new Map()
 
@@ -53,7 +54,10 @@ const handleEndedStreams = async (activeSlugs) => {
         include: {
             snapshots: {
                 orderBy: { recordedAt: "asc" }
-            }
+            },
+            chatSnapshots: {
+                orderBy: { recordedAt: "asc" },
+            },
         }
     })
 
@@ -64,17 +68,22 @@ const handleEndedStreams = async (activeSlugs) => {
         const lastSnapshot = snapshots[snapshots.length - 1]
         const finalEndAt = lastSnapshot.recordedAt
 
-        const viewerCounts = snapshots.map((s) => s.viewCount)
-        const peakViewers = Math.max(...viewerCounts, 0)
-        const totalSum = viewerCounts.reduce((acc, curr) => acc + curr, 0)
-        const avgViewers = parseFloat((totalSum / viewerCounts.length).toFixed(2))
+        const viewerCounts = pluck(snapshots, 'viewCount')
+        const peakViewers = getPeak(viewerCounts)
+        const avgViewers = getAverage(viewerCounts, 2)
+        
+        const chatCounts = pluck(stream.chatSnapshots, 'messageCount')
+        const peakChat = getPeak(chatCounts)
+        const avgChat = getAverage(chatCounts, 1)
 
         await prismaClient.livestream.update({
             where: { id: stream.id },
             data: {
                 endAt: finalEndAt,
                 peakViewers,
-                avgViewers
+                avgViewers,
+                peakChat,
+                avgChat
             }
         })
 

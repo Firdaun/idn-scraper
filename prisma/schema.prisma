@@ -21,6 +21,8 @@ model Livestream {
   endAt            DateTime?
   peakViewers      Int                    @default(0)
   avgViewers       Float                  @default(0)
+  peakChat         Int                    @default(0)
+  avgChat          Float                  @default(0)
   createdAt        DateTime               @default(now())
 
   snapshots        Snapshot[]
